@@ -146,20 +146,26 @@ function glitchText(text) {
 function connectToServer() {
     try {
         console.log(`Attempting to connect to WebSocket server at: ${WS_URL}`);
+        console.log(`Current protocol: ${window.location.protocol}, hostname: ${window.location.hostname}, port: ${window.location.port}`);
         
         // Create WebSocket connection
         socket = new WebSocket(WS_URL);
+        console.log('WebSocket object created:', socket);
         
         // Connection opened
         socket.addEventListener('open', (event) => {
             console.log('Connected to server successfully');
+            console.log('WebSocket open event:', event);
             // Reset reconnection attempts on successful connection
             reconnectAttempts = 0;
             reconnectBackoff = 2000; // Reset backoff time
             
             // Send login request only if we have a username and are connecting for login purposes
             if (username && loginStatus.textContent === 'Connecting to server...') {
+                console.log(`Sending login request for username: ${username}`);
                 sendLoginRequest();
+            } else {
+                console.log(`Not sending login request. Username: ${username}, Status: ${loginStatus.textContent}`);
             }
         });
         
@@ -214,6 +220,7 @@ function connectToServer() {
 function handleLogin() {
     // Get and validate username
     username = usernameInput.value.trim();
+    console.log(`Login attempt with username: ${username}`);
     
     if (!username) {
         loginStatus.textContent = 'Please enter a username';
@@ -230,30 +237,48 @@ function handleLogin() {
     // Update UI to show we're connecting
     loginStatus.textContent = 'Connecting to server...';
     loginStatus.style.color = 'var(--notification-color)';
+    console.log(`WebSocket URL: ${WS_URL}`);
     
     // Close any existing connection
     if (socket) {
+        console.log('Closing existing socket connection');
         socket.close();
     }
     
     // Connect to server
+    console.log('Attempting to connect to WebSocket server...');
     connectToServer();
     
     // Set a timeout in case connection fails
     setTimeout(() => {
+        console.log(`Connection status check - Socket exists: ${!!socket}, ReadyState: ${socket ? socket.readyState : 'N/A'}`);
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             loginStatus.textContent = 'Failed to connect to server. Please try again.';
             loginStatus.style.color = 'var(--error-color)';
+            console.error('WebSocket connection failed or timed out');
+        } else {
+            console.log('WebSocket connection established successfully');
         }
     }, 5000);
 }
 
 // Send login request to server
 function sendLoginRequest() {
-    socket.send(JSON.stringify({
-        type: 'login',
-        username: username
-    }));
+    console.log(`Preparing to send login request for username: ${username}`);
+    try {
+        const loginData = {
+            type: 'login',
+            username: username
+        };
+        const loginJSON = JSON.stringify(loginData);
+        console.log(`Sending login data: ${loginJSON}`);
+        socket.send(loginJSON);
+        console.log('Login request sent successfully');
+    } catch (error) {
+        console.error('Error sending login request:', error);
+        loginStatus.textContent = 'Error sending login request. Please try again.';
+        loginStatus.style.color = 'var(--error-color)';
+    }
     
     // Show waiting screen
     showScreen(waitingScreen);
@@ -316,14 +341,20 @@ function handleCancelSearch() {
 
 // Handle WebSocket messages
 function handleSocketMessage(event) {
+    console.log('WebSocket message received:', event);
     try {
-        const data = JSON.parse(event.data);
-        console.log('Received message:', data.type);
+        const rawData = event.data;
+        console.log('Raw message data:', rawData);
+        
+        const data = JSON.parse(rawData);
+        console.log('Parsed message data:', data);
+        console.log('Message type:', data.type);
         
         switch (data.type) {
             case 'login_success':
                 userId = data.userId;
                 console.log('Login successful, userId:', userId);
+                console.log('Full login success data:', data);
                 
                 // Show waiting screen
                 showScreen(waitingScreen);
