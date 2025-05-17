@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ephemeral Chat</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="terminal">
+        <div class="terminal-header">
+        </div>
+        
+        <!-- Login Screen -->
+        <div id="login-screen" class="terminal-screen active">
+            <div class="login-container">
+                <div class="terminal-prompt">
+                    <span class="prompt-text">Enter username:</span>
+                </div>
+                <div class="input-line">
+                    <input type="text" id="username-input" class="terminal-input invisible" maxlength="15" autocomplete="off">
+                </div>
+                <div class="login-status" id="login-status"></div>
+            </div>
+        </div>
+        
+        <!-- Waiting Screen -->
+        <div id="waiting-screen" class="terminal-screen">
+            <div class="loading-animation">
+                <div class="simple-animation"></div>
+            </div>
+            <div class="status-message" id="waiting-status">Initializing connection protocols...</div>
+            <button id="cancel-search-btn" class="terminal-btn-minimal">cancel</button>
+        </div>
+        
+        <!-- Chat Screen -->
+        <div id="chat-screen" class="terminal-screen">
+            <div class="chat-header">
+                <div class="connection-info">
+                    <span class="connection-label">SECURE CONNECTION ESTABLISHED WITH:</span>
+                    <span class="connection-user" id="partner-username">Anonymous</span>
+                </div>
+                <div class="chat-controls">
+                    <button id="report-btn" class="terminal-btn small">REPORT</button>
+                    <button id="skip-btn" class="terminal-btn small">SKIP [ESC]</button>
+                </div>
+            </div>
+            
+            <div id="chat-messages" class="chat-messages"></div>
+            
+            <div class="typing-indicator" id="typing-indicator">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+            
+            <div class="chat-input-container">
+                <input type="text" id="message-input" class="terminal-input" autocomplete="off">
+            </div>
+        </div>
+        
+        <!-- Skip Countdown Screen (overlay) -->
+        <div id="skip-overlay" class="overlay">
+            <div class="skip-container">
+                <div class="skip-message">INITIATING DISCONNECT SEQUENCE</div>
+                <div class="countdown" id="skip-countdown">3</div>
+                <div class="skip-instructions">Press ESC again to cancel</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="scripts.js"></script>
+</body>
+</html>
