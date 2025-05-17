@@ -149,7 +149,6 @@ wss.on('connection', (ws, req) => {
   
   // Log connection information for debugging
   console.log(`WebSocket protocol: ${ws.protocol}`);
-  console.log(`WebSocket headers:`, req.headers);
   
   // Generate a unique ID for this connection
   const userId = uuidv4();
