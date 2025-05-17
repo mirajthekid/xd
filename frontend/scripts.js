@@ -32,8 +32,10 @@ const skipBtn = document.getElementById('skip-btn');
 const reportBtn = document.getElementById('report-btn');
 const skipCountdown = document.getElementById('skip-countdown');
 
-// WebSocket server URL (change in production)
-const WS_URL = `ws://${window.location.hostname}:3000`;
+// WebSocket server URL - dynamically determine protocol and port
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const port = window.location.port ? `:${window.location.port}` : '';
+const WS_URL = `${protocol}//${window.location.hostname}${port}`;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
@@ -140,15 +142,20 @@ function glitchText(text) {
     return glitchSpan;
 }
 
-// Connect to WebSocket server
+// Connect to WebSocket server with reconnection logic
 function connectToServer() {
     try {
+        console.log(`Attempting to connect to WebSocket server at: ${WS_URL}`);
+        
         // Create WebSocket connection
         socket = new WebSocket(WS_URL);
         
         // Connection opened
         socket.addEventListener('open', (event) => {
-            console.log('Connected to server');
+            console.log('Connected to server successfully');
+            // Reset reconnection attempts on successful connection
+            reconnectAttempts = 0;
+            reconnectBackoff = 2000; // Reset backoff time
             
             // Send login request only if we have a username and are connecting for login purposes
             if (username && loginStatus.textContent === 'Connecting to server...') {
@@ -161,27 +168,40 @@ function connectToServer() {
         
         // Connection closed
         socket.addEventListener('close', (event) => {
-            console.log('Disconnected from server');
+            console.log(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`);
             
-            // Show login screen with error message
-            showScreen(loginScreen);
-            loginStatus.textContent = 'Connection lost. Please try again.';
-            loginStatus.style.color = 'var(--error-color)';
-            
-            // Clear any existing data
-            userId = null;
-            roomId = null;
-            partnerUsername = null;
+            // Attempt to reconnect if not at max attempts
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                const timeout = reconnectBackoff * Math.pow(2, reconnectAttempts - 1); // Exponential backoff
+                console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${timeout}ms...`);
+                
+                loginStatus.textContent = `Connection lost. Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
+                loginStatus.style.color = 'var(--notification-color)';
+                
+                setTimeout(() => {
+                    connectToServer();
+                }, timeout);
+            } else {
+                // Max reconnection attempts reached
+                console.log('Maximum reconnection attempts reached. Giving up.');
+                
+                // Show login screen with error message
+                showScreen(loginScreen);
+                loginStatus.textContent = 'Connection lost. Please refresh the page and try again.';
+                loginStatus.style.color = 'var(--error-color)';
+                
+                // Clear any existing data
+                userId = null;
+                roomId = null;
+                partnerUsername = null;
+            }
         });
         
         // Connection error
         socket.addEventListener('error', (event) => {
             console.error('WebSocket error:', event);
-            
-            // Show login screen with error message
-            showScreen(loginScreen);
-            loginStatus.textContent = 'Connection error. Please try again.';
-            loginStatus.style.color = 'var(--error-color)';
+            // Error handling is done in the close event handler
         });
     } catch (error) {
         console.error('Error connecting to server:', error);

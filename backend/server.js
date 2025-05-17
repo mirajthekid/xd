@@ -11,17 +11,42 @@ const app = express();
 // Configure CORS for production
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' ? '*' : 'http://localhost:3000',
-  methods: ['GET', 'POST'],
-  credentials: true
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Add headers for WebSocket support
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize WebSocket server
-const wss = new WebSocket.Server({ server });
+// Initialize WebSocket server with proper configuration for production
+const wss = new WebSocket.Server({ 
+  server,
+  // Handle upgrade events properly
+  perMessageDeflate: {
+    zlibDeflateOptions: {
+      chunkSize: 1024,
+      memLevel: 7,
+      level: 3
+    },
+    zlibInflateOptions: {
+      chunkSize: 10 * 1024
+    },
+    // Below options specified as default values
+    concurrencyLimit: 10,
+    threshold: 1024 // Size in bytes below which messages should not be compressed
+  }
+});
 
 // In-memory data structures
 const waitingUsers = []; // Queue for users waiting to be matched
@@ -119,8 +144,12 @@ function matchUsers() {
 }
 
 // WebSocket connection handler
-wss.on('connection', (ws) => {
-  console.log('New client connected');
+wss.on('connection', (ws, req) => {
+  console.log(`New client connected from ${req.socket.remoteAddress}`);
+  
+  // Log connection information for debugging
+  console.log(`WebSocket protocol: ${ws.protocol}`);
+  console.log(`WebSocket headers:`, req.headers);
   
   // Generate a unique ID for this connection
   const userId = uuidv4();
