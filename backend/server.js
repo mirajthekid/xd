@@ -54,6 +54,31 @@ const activeRooms = new Map(); // Map of active chat rooms
 const userConnections = new Map(); // Map of user IDs to their WebSocket connections
 const userSockets = new Map(); // Map of WebSocket to user IDs
 
+// Function to broadcast online users count to all connected clients
+function broadcastOnlineCount() {
+  // Count all connected WebSocket clients instead of just logged-in users
+  let totalVisitors = 0;
+  
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      totalVisitors++;
+    }
+  });
+  
+  const message = JSON.stringify({
+    type: 'online_count',
+    count: totalVisitors
+  });
+  
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+  
+  console.log(`Broadcasting online count: ${totalVisitors} visitors`);
+}
+
 // Set up a periodic matchmaking check (every 5 seconds)
 setInterval(() => {
   if (waitingUsers.length >= 2) {
@@ -61,6 +86,11 @@ setInterval(() => {
     matchUsers();
   }
 }, 5000);
+
+// Broadcast online count periodically (every 10 seconds)
+setInterval(() => {
+  broadcastOnlineCount();
+}, 10000);
 
 // Clean up inactive connections every 30 seconds
 setInterval(() => {
@@ -156,6 +186,9 @@ wss.on('connection', (ws, req) => {
   // Associate this WebSocket with the userId
   userSockets.set(ws, userId);
   
+  // Broadcast updated count immediately when a new client connects
+  broadcastOnlineCount();
+  
   // Handle incoming messages
   ws.on('message', (message) => {
     try {
@@ -193,6 +226,9 @@ wss.on('connection', (ws, req) => {
           }));
           
           console.log(`User ${username} (${userId}) logged in and added to queue`);
+          
+          // Broadcast updated online count
+          broadcastOnlineCount();
           
           // Try to match users
           setTimeout(() => matchUsers(), 500); // Slight delay to ensure connection is fully established
@@ -234,64 +270,137 @@ wss.on('connection', (ws, req) => {
           break;
           
         case 'typing':
-          // Find the room and notify partner that user is typing
-          activeRooms.forEach((room) => {
-            if (room.users.some(u => u.id === userId)) {
-              const partner = room.users.find(u => u.id !== userId);
-              const partnerConnection = userConnections.get(partner.id);
-              
-              if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
-                partnerConnection.send(JSON.stringify({
-                  type: 'typing',
-                  isTyping: data.isTyping,
-                  username: data.username
-                }));
+          console.log(`Typing event received from ${userId}, isTyping: ${data.isTyping}, username: ${data.username}`);
+          
+          // If roomId is provided, use it directly
+          let typingTargetRoom = null;
+          let typingTargetPartner = null;
+          
+          if (data.roomId && activeRooms.has(data.roomId)) {
+            typingTargetRoom = activeRooms.get(data.roomId);
+            typingTargetPartner = typingTargetRoom.users.find(u => u.id !== userId);
+            console.log(`Using provided roomId ${data.roomId} to find partner`);
+          } else {
+            // Otherwise search for the room containing this user
+            activeRooms.forEach((room) => {
+              if (room.users.some(u => u.id === userId)) {
+                typingTargetRoom = room;
+                typingTargetPartner = room.users.find(u => u.id !== userId);
+                console.log(`Found room with user ${userId}`);
               }
+            });
+          }
+          
+          if (typingTargetRoom && typingTargetPartner) {
+            console.log(`Found partner: ${typingTargetPartner.username} (${typingTargetPartner.id})`);
+            
+            const partnerConnection = userConnections.get(typingTargetPartner.id);
+            
+            if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
+              const typingMessage = {
+                type: 'typing',
+                isTyping: data.isTyping,
+                username: data.username
+              };
+              console.log(`Sending typing message to partner: ${JSON.stringify(typingMessage)}`);
+              partnerConnection.send(JSON.stringify(typingMessage));
+            } else {
+              console.log(`Partner connection not available or not open`);
             }
-          });
+          } else {
+            console.log(`No room or partner found for user ${userId}`);
+          }
           break;
           
-        case 'skip':
-          // Find the room - either by roomId if provided, or by searching for the user
-          let roomToClose = null;
+        case 'skip_notification':
+          console.log(`Skip notification received from ${userId}, username: ${data.username}`);
+          
+          // Find the room and notify partner about the skip intention
+          let skipRoomFound = false;
+          let roomToNotify = data.roomId ? data.roomId : null;
           let partnerToNotify = null;
           
-          // If client provided a roomId, use it directly
-          if (data.roomId && activeRooms.has(data.roomId)) {
-            roomToClose = data.roomId;
-            const room = activeRooms.get(data.roomId);
+          // If roomId is provided, use it directly
+          if (roomToNotify && activeRooms.has(roomToNotify)) {
+            skipRoomFound = true;
+            const room = activeRooms.get(roomToNotify);
             partnerToNotify = room.users.find(u => u.id !== userId);
           } else {
             // Otherwise search for the room containing this user
             activeRooms.forEach((room, roomId) => {
               if (room.users.some(u => u.id === userId)) {
-                roomToClose = roomId;
+                skipRoomFound = true;
+                roomToNotify = roomId;
                 partnerToNotify = room.users.find(u => u.id !== userId);
               }
             });
           }
           
-          if (roomToClose && partnerToNotify) {
-            console.log(`User ${userId} skipped chat in room ${roomToClose}`);
+          if (skipRoomFound && partnerToNotify) {
+            console.log(`Found partner ${partnerToNotify.username} for skip notification`);
             
-            // Notify partner about skip
             const partnerConnection = userConnections.get(partnerToNotify.id);
             
             if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
               partnerConnection.send(JSON.stringify({
                 type: 'partner_skipped',
-                message: 'Your chat partner has left the conversation'
+                message: `${data.username} wants to skip`,
+                username: data.username
+              }));
+              console.log(`Sent skip notification to partner ${partnerToNotify.username}`);
+            } else {
+              console.log(`Partner connection not available for skip notification`);
+            }
+          } else {
+            console.log(`No room or partner found for skip notification`);
+          }
+          break;
+          
+        case 'skip':
+          // Find the room - either by roomId if provided, or by searching for the user
+          let roomToClose = null;
+          let partnerToNotifyOnSkip = null;
+          
+          // If client provided a roomId, use it directly
+          if (data.roomId && activeRooms.has(data.roomId)) {
+            roomToClose = data.roomId;
+            const room = activeRooms.get(data.roomId);
+            partnerToNotifyOnSkip = room.users.find(u => u.id !== userId);
+          } else {
+            // Otherwise search for the room containing this user
+            activeRooms.forEach((room, roomId) => {
+              if (room.users.some(u => u.id === userId)) {
+                roomToClose = roomId;
+                partnerToNotifyOnSkip = room.users.find(u => u.id !== userId);
+              }
+            });
+          }
+          
+          if (roomToClose && partnerToNotifyOnSkip) {
+            console.log(`User ${userId} skipped chat in room ${roomToClose}`);
+            
+            // Notify partner about skip
+            const partnerConnection = userConnections.get(partnerToNotifyOnSkip.id);
+            
+            if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
+              // Find the username of the user who initiated the skip
+              const skipperUsername = data.username || 'Your chat partner';
+              
+              partnerConnection.send(JSON.stringify({
+                type: 'partner_skipped',
+                message: `${skipperUsername} wants to skip`,
+                username: skipperUsername
               }));
               
               // Add partner back to waiting queue if they're still connected
               // Remove from any existing queue first to prevent duplicates
-              const partnerWaitingIndex = waitingUsers.findIndex(u => u.id === partnerToNotify.id);
+              const partnerWaitingIndex = waitingUsers.findIndex(u => u.id === partnerToNotifyOnSkip.id);
               if (partnerWaitingIndex !== -1) {
                 waitingUsers.splice(partnerWaitingIndex, 1);
               }
               
-              waitingUsers.push(partnerToNotify);
-              console.log(`Added user ${partnerToNotify.id} back to waiting queue after partner skip`);
+              waitingUsers.push(partnerToNotifyOnSkip);
+              console.log(`Added user ${partnerToNotifyOnSkip.id} back to waiting queue after partner skip`);
             }
             
             // Remove room
@@ -324,6 +433,9 @@ wss.on('connection', (ws, req) => {
   // Handle disconnection
   ws.on('close', () => {
     console.log(`Client disconnected: ${userId}`);
+    
+    // Broadcast updated online count after a short delay to ensure cleanup is complete
+    setTimeout(() => broadcastOnlineCount(), 100);
     
     // Remove user from waiting queue if they're there
     const waitingIndex = waitingUsers.findIndex(u => u.id === userId);

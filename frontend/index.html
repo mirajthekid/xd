@@ -17,11 +17,9 @@
         <!-- Login Screen -->
         <div id="login-screen" class="terminal-screen active">
             <div class="login-container">
-                <div class="terminal-prompt">
+                <div class="terminal-prompt-row">
                     <span class="prompt-text">Enter username:</span>
-                </div>
-                <div class="input-line">
-                    <input type="text" id="username-input" class="terminal-input invisible" maxlength="15" autocomplete="off">
+                    <input type="text" id="username-input" class="terminal-input" maxlength="15" autocomplete="off" placeholder="">
                 </div>
                 <div class="login-status" id="login-status"></div>
             </div>
@@ -39,26 +37,26 @@
         <!-- Chat Screen -->
         <div id="chat-screen" class="terminal-screen">
             <div class="chat-header">
+                <button id="skip-btn" class="terminal-btn small">SKIP [ESC]</button>
                 <div class="connection-info">
-                    <span class="connection-label">SECURE CONNECTION ESTABLISHED WITH:</span>
-                    <span class="connection-user" id="partner-username">Anonymous</span>
-                </div>
-                <div class="chat-controls">
-                    <button id="report-btn" class="terminal-btn small">REPORT</button>
-                    <button id="skip-btn" class="terminal-btn small">SKIP [ESC]</button>
+                    <div class="status-indicator"></div>
+                    <span class="connection-label">ONLINE TYPERS:</span>
                 </div>
             </div>
             
             <div id="chat-messages" class="chat-messages"></div>
             
-            <div class="typing-indicator" id="typing-indicator">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
+            <!-- Fixed typing indicator that will be shown/hidden via JavaScript -->
+            <div id="typing-indicator" class="typing-indicator">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span id="typing-text"></span>
             </div>
             
-            <div class="chat-input-container">
-                <input type="text" id="message-input" class="terminal-input" autocomplete="off">
+            <!-- Chat input container -->
+            <div id="chat-input-container" class="chat-input-container">
+                <!-- Input will be added dynamically -->
             </div>
         </div>
         
