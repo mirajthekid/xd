@@ -459,6 +459,8 @@ body {
     order: 0; /* Keep it at the beginning on desktop */
     vertical-align: middle;
     transition: opacity 0.2s ease;
+    position: relative;
+    left: 0;
 }
 
 .message:hover .message-timestamp {
@@ -880,6 +882,13 @@ body {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    html, body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: fixed;
+    }
+    
     .terminal {
         width: 100%;
         height: 100%;
@@ -994,6 +1003,9 @@ body {
         left: 0;
         right: 0;
         bottom: 50px;
+        transform: translateZ(0); /* Hardware acceleration */
+        -webkit-transform: translateZ(0);
+        will-change: transform; /* Hint to browser for optimization */
     }
     
     /* Make all messages look the same regardless of incoming/outgoing */

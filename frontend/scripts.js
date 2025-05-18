@@ -46,20 +46,55 @@ const WS_URL = `${protocol}//${window.location.hostname}${port}`;
 // Handle mobile viewport resizing when keyboard appears/disappears
 function handleMobileResize() {
     if (chatScreen.classList.contains('active')) {
-        // Scroll to bottom when keyboard appears or disappears
+        // Prevent default scrolling behavior
+        window.scrollTo(0, 0);
+        
+        // Scroll chat messages to bottom
         setTimeout(() => {
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
             // On iOS devices, we need to handle the viewport differently
             if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                document.body.style.height = window.innerHeight + 'px';
+                // Lock the viewport height
+                const viewportHeight = window.innerHeight;
+                document.documentElement.style.height = viewportHeight + 'px';
+                document.body.style.height = viewportHeight + 'px';
+                
+                // Force scroll to top to prevent shifting
                 window.scrollTo(0, 0);
             }
         }, 100);
     }
 }
 
+// Prevent viewport issues on mobile
+function preventViewportIssues() {
+    // For iOS devices
+    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        // Set a fixed viewport height
+        const viewportHeight = window.innerHeight;
+        document.documentElement.style.height = viewportHeight + 'px';
+        document.body.style.height = viewportHeight + 'px';
+        
+        // Prevent scrolling on the body
+        document.body.style.overflow = 'hidden';
+        
+        // Prevent zoom on input focus
+        const metaViewport = document.querySelector('meta[name=viewport]');
+        if (metaViewport) {
+            metaViewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        } else {
+            const meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+            document.head.appendChild(meta);
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Apply mobile viewport fixes
+    preventViewportIssues();
     // Make the entire body activate username input on login page for mobile
     document.body.addEventListener('click', (e) => {
         // Only do this when login screen is active
