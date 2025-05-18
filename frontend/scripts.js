@@ -43,7 +43,31 @@ const port = window.location.port ? `:${window.location.port}` : '';
 const WS_URL = `${protocol}//${window.location.hostname}${port}`;
 
 // Initialize the application
+// Handle mobile viewport resizing when keyboard appears/disappears
+function handleMobileResize() {
+    if (chatScreen.classList.contains('active')) {
+        // Scroll to bottom when keyboard appears or disappears
+        setTimeout(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 100);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Immediately focus the username input on page load for mobile
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        // For mobile devices, use a more aggressive approach to focus
+        setTimeout(() => {
+            if (usernameInput) {
+                // This sequence helps ensure focus on various mobile browsers
+                usernameInput.click();
+                usernameInput.focus();
+                // Some mobile browsers need this trick
+                usernameInput.blur();
+                usernameInput.focus();
+            }
+        }, 500); // Slightly longer delay for mobile browsers
+    }
     // Create chat input element dynamically
     function createChatInput() {
         // Check if input already exists
@@ -135,6 +159,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 const currentMessageInput = document.getElementById('message-input');
                 if (currentMessageInput) {
+                    // Scroll chat to bottom first
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
                     currentMessageInput.focus();
                     
                     // On mobile, this helps ensure the keyboard appears
@@ -142,6 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         // This trick helps force the keyboard to show on some mobile devices
                         currentMessageInput.blur();
                         currentMessageInput.focus();
+                        
+                        // Add event listeners for keyboard showing/hiding on mobile
+                        window.addEventListener('resize', handleMobileResize);
                     }
                 }
             }, 100);
@@ -152,15 +182,30 @@ document.addEventListener('DOMContentLoaded', () => {
             // Focus the username input after a short delay
             setTimeout(() => {
                 if (usernameInput) {
-                    usernameInput.focus();
-                    
-                    // On mobile, this helps ensure the keyboard appears
+                    // For mobile, use multiple techniques to ensure focus
                     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                        // Programmatically click the input first
+                        usernameInput.click();
+                        usernameInput.focus();
+                        // Some mobile browsers need this blur/focus sequence
                         usernameInput.blur();
+                        usernameInput.focus();
+                        
+                        // For iOS specifically
+                        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                            usernameInput.setAttribute('readonly', 'readonly');
+                            setTimeout(() => {
+                                usernameInput.removeAttribute('readonly');
+                                usernameInput.click();
+                                usernameInput.focus();
+                            }, 100);
+                        }
+                    } else {
+                        // For desktop
                         usernameInput.focus();
                     }
                 }
-            }, 100);
+            }, 300); // Longer delay for more reliable focus on mobile
         }
     };
     
@@ -994,58 +1039,55 @@ function sendMessage() {
 }
 
 // Display a message in the chat
-function displayMessage(content, sender, type, timestamp) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message', type);
+function displayMessage(content, sender, type = 'message', timestamp = null) {
+    // Create message container
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type === 'system' ? 'system' : sender === username ? 'outgoing' : 'incoming'}`;
     
     if (type === 'system') {
         // System messages are simple text
-        messageElement.textContent = content;
+        messageDiv.innerHTML = content; // Use innerHTML for system messages to support formatting
     } else {
-        // Create a single line for user messages
+        // Create message wrapper for better styling
         const messageWrapper = document.createElement('div');
-        messageWrapper.classList.add('message-wrapper');
+        messageWrapper.className = 'message-wrapper';
         
-        // Create timestamp (hidden by default)
-        const timestampElement = document.createElement('span');
-        timestampElement.classList.add('message-timestamp');
-        timestampElement.textContent = formatTimestamp(timestamp);
+        // Add sender name
+        const senderSpan = document.createElement('span');
+        senderSpan.className = 'message-sender';
+        senderSpan.textContent = sender === username ? 'You:' : `${sender}:`;
+        messageWrapper.appendChild(senderSpan);
         
-        // Create sender with colon
-        const senderElement = document.createElement('span');
-        senderElement.classList.add('message-sender');
-        senderElement.textContent = sender + ':';
+        // Add message content
+        const contentSpan = document.createElement('span');
+        contentSpan.className = 'message-content';
+        contentSpan.textContent = content;
+        messageWrapper.appendChild(contentSpan);
         
-        // Create message content with glitch effect
-        const contentElement = document.createElement('span');
-        contentElement.classList.add('message-content');
-        contentElement.appendChild(glitchText(content));
+        // Add timestamp if provided
+        if (timestamp) {
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'message-timestamp';
+            timeSpan.textContent = formatTimestamp(timestamp);
+            messageWrapper.appendChild(timeSpan);
+        }
         
-        // Add elements in order: timestamp (hidden), username, content
-        messageWrapper.appendChild(timestampElement);
-        messageWrapper.appendChild(senderElement);
-        messageWrapper.appendChild(document.createTextNode(' '));
-        messageWrapper.appendChild(contentElement);
-        
-        messageElement.appendChild(messageWrapper);
+        // Add wrapper to message div
+        messageDiv.appendChild(messageWrapper);
     }
     
-    chatMessages.appendChild(messageElement);
+    // Add to chat container
+    chatMessages.appendChild(messageDiv);
     
-    // Scroll to bottom
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    // Scroll to bottom with a slight delay to ensure rendering is complete
+    setTimeout(() => {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }, 10);
 }
 
 // Show system message
 function showSystemMessage(message) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message', 'system');
-    messageElement.innerHTML = message; // Use innerHTML instead of textContent to render emoji
-    
-    chatMessages.appendChild(messageElement);
-    
-    // Scroll to bottom
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    displayMessage(message, null, 'system');
 }
 
 // Handle typing event
