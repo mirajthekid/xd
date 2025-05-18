@@ -116,14 +116,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 100);
         }
+        
+        // If showing login screen, set up click handler to focus username input
+        if (screen === loginScreen) {
+            setTimeout(() => {
+                usernameInput.focus();
+            }, 100);
+        }
     };
     
     // Focus username input on page load
     usernameInput.focus();
     
-    // Event listeners
+    // Make login screen clickable to focus the username input
+    loginScreen.addEventListener('click', (e) => {
+        // Don't focus if clicking on a button or the input itself
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target === usernameInput) {
+            return;
+        }
+        usernameInput.focus();
+    });
+    
+    // Event listeners for username input
     usernameInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleLogin();
+    });
+    
+    // Handle mobile keyboard "done" button for username input
+    usernameInput.addEventListener('blur', () => {
+        // On mobile, when the keyboard is dismissed, check if there's a username
+        // and if we're still on the login screen
+        if (usernameInput.value.trim() && loginScreen.classList.contains('active')) {
+            // Small delay to ensure this was an intentional blur (like pressing "done")
+            // and not just clicking elsewhere on the screen
+            setTimeout(() => {
+                // Only proceed if the input is still not focused and we're still on login screen
+                if (document.activeElement !== usernameInput && loginScreen.classList.contains('active')) {
+                    handleLogin();
+                }
+            }, 300);
+        }
     });
 
     // Handle login function
