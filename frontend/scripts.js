@@ -461,7 +461,7 @@ function handleSocketMessage(event) {
                         // Show typing indicator with partner's username
                         console.log('Showing typing indicator for:', data.username);
                         if (typingText) {
-                            typingText.textContent = ${data.username} is typing...;
+                            typingText.textContent = `${data.username} is typing...`;
                         }
                         if (typingIndicator) {
                             typingIndicator.classList.add('active');
@@ -972,7 +972,7 @@ function handleSocketMessage(event) {
                         // Show typing indicator with partner's username
                         console.log('Showing typing indicator for:', data.username);
                         if (typingText) {
-                            typingText.textContent = ${data.username} is typing...;
+                            typingText.textContent = `${data.username} is typing...`;
                         }
                         if (typingIndicator) {
                             typingIndicator.classList.add('active');
