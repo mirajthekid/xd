@@ -886,6 +886,31 @@ body {
         border-radius: 0;
     }
     
+    /* Adjust username prompt and input positioning for mobile */
+    .terminal-prompt-row {
+        justify-content: flex-start;
+        padding-left: 15%;
+    }
+    
+    .prompt-text {
+        font-size: 0.9rem;
+    }
+    
+    .terminal-input {
+        max-width: 70%;
+    }
+    
+    /* Adjust chat input for mobile */
+    .chat-input-container {
+        max-width: 100%;
+        padding-right: 25px;
+        padding-left: 25px;
+    }
+    
+    .chat-message-input {
+        max-width: 100%;
+    }
+    
     .chat-header {
         padding-top: 40px; /* Add more space for the controls at the top */
     }

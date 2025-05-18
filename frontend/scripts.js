@@ -61,10 +61,33 @@ document.addEventListener('DOMContentLoaded', () => {
         input.className = 'chat-message-input';
         input.autocomplete = 'off';
         input.placeholder = '';
+        input.inputMode = 'text'; // Better keyboard on mobile
+        input.enterKeyHint = 'send'; // Show send button on mobile keyboard
         
         // Add event listener for sending messages
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
+        });
+        
+        // Add event for mobile keyboard's done/send button
+        input.addEventListener('keyup', (e) => {
+            if (e.keyCode === 13 || e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Handle mobile keyboard done button (blur event)
+        input.addEventListener('blur', () => {
+            // On mobile, when the keyboard is dismissed, check if there's a message
+            if (input.value.trim() && chatScreen.classList.contains('active')) {
+                // Small delay to ensure this was an intentional blur (like pressing "done")
+                setTimeout(() => {
+                    // Only proceed if the input is still not focused and we're still on chat screen
+                    if (document.activeElement !== input && chatScreen.classList.contains('active') && input.value.trim()) {
+                        sendMessage();
+                    }
+                }, 300);
+            }
         });
         
         // Add multiple event listeners for typing indicator to ensure it triggers
@@ -113,6 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentMessageInput = document.getElementById('message-input');
                 if (currentMessageInput) {
                     currentMessageInput.focus();
+                    
+                    // On mobile, this helps ensure the keyboard appears
+                    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                        // This trick helps force the keyboard to show on some mobile devices
+                        currentMessageInput.blur();
+                        currentMessageInput.focus();
+                    }
                 }
             }, 100);
         }
@@ -147,6 +177,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check for Enter key (which is 13) for compatibility with mobile keyboards
         if (e.keyCode === 13 || e.key === 'Enter') {
             handleLogin();
+        }
+    });
+    
+    // Handle mobile keyboard done button (blur event)
+    usernameInput.addEventListener('blur', () => {
+        // On mobile, when the keyboard is dismissed, check if there's a username
+        // and if we're still on the login screen
+        if (usernameInput.value.trim() && loginScreen.classList.contains('active')) {
+            // Small delay to ensure this was an intentional blur (like pressing "done")
+            // and not just clicking elsewhere on the screen
+            setTimeout(() => {
+                // Only proceed if the input is still not focused and we're still on login screen
+                if (document.activeElement !== usernameInput && loginScreen.classList.contains('active')) {
+                    handleLogin();
+                }
+            }, 300);
         }
     });
     
