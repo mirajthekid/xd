@@ -970,6 +970,10 @@ function handleSocketMessage(event) {
                 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
                     // For mobile: Add click event listener to the overlay to cancel skip
                     skipOverlay.addEventListener('click', function skipCancelHandler(e) {
+                        // Prevent default behavior and stop propagation to prevent input focus
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
                         // Only if we're in an active skip countdown
                         if (skipOverlay.classList.contains('active') && skipCountdownTimer) {
                             cancelSkip();
@@ -1120,6 +1124,14 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
         const messageWrapper = document.createElement('div');
         messageWrapper.className = 'message-wrapper';
         
+        // Add timestamp first if provided (to position it on the left)
+        if (timestamp) {
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'message-timestamp';
+            timeSpan.textContent = formatTimestamp(timestamp);
+            messageWrapper.appendChild(timeSpan);
+        }
+        
         // Add sender name
         const senderSpan = document.createElement('span');
         senderSpan.className = 'message-sender';
@@ -1138,14 +1150,6 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
         }
         
         messageWrapper.appendChild(contentSpan);
-        
-        // Add timestamp if provided
-        if (timestamp) {
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'message-timestamp';
-            timeSpan.textContent = formatTimestamp(timestamp);
-            messageWrapper.appendChild(timeSpan);
-        }
         
         // Add wrapper to message div
         messageDiv.appendChild(messageWrapper);
