@@ -96,6 +96,12 @@ function preventViewportIssues() {
 document.addEventListener('DOMContentLoaded', () => {
     // Apply mobile viewport fixes
     preventViewportIssues();
+    
+    // Set up cancel button listener if it exists
+    if (cancelSkipBtn) {
+        cancelSkipBtn.addEventListener('click', cancelSkipBtnHandler);
+    }
+    
     // Make the entire body activate username input on login page for mobile
     document.body.addEventListener('click', (e) => {
         // Only do this when login screen is active
@@ -960,24 +966,50 @@ function handleSocketMessage(event) {
                 break;
                 
             case 'skip_request':
-                // Show skip overlay
-                skipOverlay.classList.add('active');
+                console.log('Skip request received');
+                
+                // Clear any existing skip timer just in case
+                if (skipCountdownTimer) {
+                    clearInterval(skipCountdownTimer);
+                    skipCountdownTimer = null;
+                }
+                
+                // Show skip overlay if it exists
+                if (skipOverlay) {
+                    skipOverlay.classList.add('active');
+                } else {
+                    console.error('Skip overlay element not found');
+                    return;
+                }
                 
                 // Start countdown
                 let countdown = 3;
-                skipCountdown.textContent = countdown;
+                if (skipCountdown) {
+                    skipCountdown.textContent = countdown;
+                }
                 
-                // Add cancel button event listener
-                // Make sure to remove any previous listeners first
-                cancelSkipBtn.removeEventListener('click', cancelSkipBtnHandler);
-                cancelSkipBtn.addEventListener('click', cancelSkipBtnHandler);
+                // Make sure the cancel button is properly set up
+                if (cancelSkipBtn) {
+                    // Remove any existing listeners to prevent duplicates
+                    cancelSkipBtn.removeEventListener('click', cancelSkipBtnHandler);
+                    // Add the new listener
+                    cancelSkipBtn.addEventListener('click', cancelSkipBtnHandler);
+                    // Make sure it's visible and interactive
+                    cancelSkipBtn.style.display = 'inline-block';
+                } else {
+                    console.error('Cancel skip button not found');
+                }
                 
+                // Start the countdown timer
                 skipCountdownTimer = setInterval(() => {
                     countdown--;
-                    skipCountdown.textContent = countdown;
+                    if (skipCountdown) {
+                        skipCountdown.textContent = countdown;
+                    }
                     
                     if (countdown <= 0) {
                         clearInterval(skipCountdownTimer);
+                        skipCountdownTimer = null;
                         completeSkip();
                     }
                 }, 1000);
@@ -1326,20 +1358,47 @@ function initiateSkip() {
 
 // Cancel skip button handler
 function cancelSkipBtnHandler(e) {
-    // Prevent default behavior
-    e.preventDefault();
-    e.stopPropagation();
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    console.log('Cancel skip button clicked');
     
     // Only if we're in an active skip countdown
-    if (skipOverlay.classList.contains('active') && skipCountdownTimer) {
+    if (skipOverlay && skipOverlay.classList.contains('active') && skipCountdownTimer) {
+        console.log('Cancelling skip...');
         cancelSkip();
+    } else {
+        console.log('Skip not active or already cancelled');
     }
 }
 
 // Cancel skip
 function cancelSkip() {
-    skipOverlay.classList.remove('active');
-    clearInterval(skipCountdownTimer);
+    console.log('Cancelling skip process...');
+    
+    // Clear the countdown timer
+    if (skipCountdownTimer) {
+        clearInterval(skipCountdownTimer);
+        skipCountdownTimer = null;
+    }
+    
+    // Hide the skip overlay if it exists
+    if (skipOverlay) {
+        skipOverlay.classList.remove('active');
+    }
+    
+    // Notify the server that we're cancelling the skip
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'skip_cancel',
+            userId: userId,
+            roomId: roomId
+        }));
+    }
+    
+    console.log('Skip process cancelled');
 }
 
 // Complete skip
