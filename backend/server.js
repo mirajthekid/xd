@@ -4,13 +4,16 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 const path = require('path');
+const { sanitizeUsername, sanitizeMessage } = require('./utils/sanitize');
 
 // Initialize express app
 const app = express();
 
-// Configure CORS for production
+// Configure CORS for production - more restrictive
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' ? '*' : 'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production' 
+    ? (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://xd-chat.onrender.com']) 
+    : 'http://localhost:3000',
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -53,6 +56,15 @@ const waitingUsers = []; // Queue for users waiting to be matched
 const activeRooms = new Map(); // Map of active chat rooms
 const userConnections = new Map(); // Map of user IDs to their WebSocket connections
 const userSockets = new Map(); // Map of WebSocket to user IDs
+
+// Rate limiting data structures
+const messageRateLimits = new Map(); // Map of user IDs to message timestamps
+const connectionRateLimits = new Map(); // Map of IP addresses to connection timestamps
+const MAX_MESSAGES_PER_MINUTE = 30; // Maximum number of messages per minute
+const MAX_CONNECTIONS_PER_MINUTE = 10; // Maximum number of connections per minute from a single IP
+
+// Security settings
+const MAX_MESSAGE_SIZE = 16 * 1024; // 16KB max message size
 
 // Function to broadcast online users count to all connected clients
 function broadcastOnlineCount() {
@@ -175,7 +187,19 @@ function matchUsers() {
 
 // WebSocket connection handler
 wss.on('connection', (ws, req) => {
-  console.log(`New client connected from ${req.socket.remoteAddress}`);
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  console.log(`New client connected from ${clientIp}`);
+  
+  // Apply rate limiting for connections
+  if (isConnectionRateLimited(clientIp)) {
+    console.log(`Connection rate limit exceeded for IP: ${clientIp}`);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Too many connection attempts. Please try again later.'
+    }));
+    ws.close();
+    return;
+  }
   
   // Log connection information for debugging
   console.log(`WebSocket protocol: ${ws.protocol}`);
@@ -192,19 +216,32 @@ wss.on('connection', (ws, req) => {
   // Handle incoming messages
   ws.on('message', (message) => {
     try {
+      // Check message size to prevent DoS attacks
+      if (message.length > MAX_MESSAGE_SIZE) {
+        console.log(`Message size limit exceeded: ${message.length} bytes`);
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Message size limit exceeded'
+        }));
+        return;
+      }
+      
       const data = JSON.parse(message);
       
       switch (data.type) {
         case 'login':
-          // Validate username
-          const username = data.username.trim();
-          if (!username || username.length < 3) {
+          // Validate username using our sanitization utility
+          const usernameResult = sanitizeUsername(data.username);
+          
+          if (!usernameResult.isValid) {
             ws.send(JSON.stringify({
               type: 'login_error',
-              message: 'Username must be at least 3 characters'
+              message: usernameResult.error
             }));
             return;
           }
+          
+          const username = usernameResult.sanitized;
           
           // Store user connection
           userConnections.set(userId, ws);
@@ -244,7 +281,31 @@ wss.on('connection', (ws, req) => {
           break;
           
         case 'message':
-          // Find the room
+          // Apply rate limiting for messages
+          if (isMessageRateLimited(userId)) {
+            console.log(`Message rate limit exceeded for user: ${userId}`);
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'You are sending messages too quickly. Please slow down.'
+            }));
+            return;
+          }
+          
+          // Sanitize the message content
+          const messageResult = sanitizeMessage(data.content);
+          
+          if (!messageResult.isValid) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: messageResult.error
+            }));
+            return;
+          }
+          
+          // Track this message for rate limiting
+          trackMessage(userId);
+          
+          // Find the room for this user
           let targetRoom = null;
           let targetUser = null;
           
@@ -261,7 +322,7 @@ wss.on('connection', (ws, req) => {
             if (targetConnection && targetConnection.readyState === WebSocket.OPEN) {
               targetConnection.send(JSON.stringify({
                 type: 'message',
-                content: data.content,
+                content: messageResult.sanitized,
                 sender: data.username,
                 timestamp: Date.now()
               }));
@@ -516,6 +577,74 @@ app.get('/chat', (req, res) => {
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
+
+// Rate limiting functions
+function isMessageRateLimited(userId) {
+  const now = Date.now();
+  const userMessages = messageRateLimits.get(userId) || [];
+  
+  // Remove messages older than 1 minute
+  const recentMessages = userMessages.filter(timestamp => now - timestamp < 60000);
+  
+  // Update the user's message timestamps
+  messageRateLimits.set(userId, recentMessages);
+  
+  // Check if the user has exceeded the rate limit
+  return recentMessages.length >= MAX_MESSAGES_PER_MINUTE;
+}
+
+function trackMessage(userId) {
+  const now = Date.now();
+  const userMessages = messageRateLimits.get(userId) || [];
+  
+  // Add the current message timestamp
+  userMessages.push(now);
+  
+  // Update the user's message timestamps
+  messageRateLimits.set(userId, userMessages);
+}
+
+function isConnectionRateLimited(ip) {
+  const now = Date.now();
+  const connections = connectionRateLimits.get(ip) || [];
+  
+  // Remove connections older than 1 minute
+  const recentConnections = connections.filter(timestamp => now - timestamp < 60000);
+  
+  // Add the current connection timestamp
+  recentConnections.push(now);
+  
+  // Update the IP's connection timestamps
+  connectionRateLimits.set(ip, recentConnections);
+  
+  // Check if the IP has exceeded the rate limit
+  return recentConnections.length > MAX_CONNECTIONS_PER_MINUTE;
+}
+
+// Clean up rate limiting data every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  
+  // Clean up message rate limits
+  messageRateLimits.forEach((timestamps, userId) => {
+    const recentMessages = timestamps.filter(timestamp => now - timestamp < 60000);
+    if (recentMessages.length === 0) {
+      messageRateLimits.delete(userId);
+    } else {
+      messageRateLimits.set(userId, recentMessages);
+    }
+  });
+  
+  // Clean up connection rate limits
+  connectionRateLimits.forEach((timestamps, ip) => {
+    const recentConnections = timestamps.filter(timestamp => now - timestamp < 60000);
+    if (recentConnections.length === 0) {
+      connectionRateLimits.delete(ip);
+    } else {
+      connectionRateLimits.set(ip, recentConnections);
+    }
+  });
+}, 300000); // 5 minutes
 
 // Start the server
 const PORT = process.env.PORT || 3000;

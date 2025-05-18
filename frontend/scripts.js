@@ -94,6 +94,10 @@ function preventViewportIssues() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Ensure utils is loaded
+    if (!window.utils) {
+        console.error('Utils module not loaded. Some security features may not work.');
+    }
     // Apply mobile viewport fixes
     preventViewportIssues();
     
@@ -603,8 +607,16 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
         messageElement.classList.add('incoming');
     }
     
-    // Set message content
+    // Set message content - using textContent which automatically escapes HTML
     messageElement.textContent = type === 'system' ? content : (sender === username ? content : `${content}`);
+    
+    // Add timestamp if provided
+    if (timestamp) {
+        const timestampElement = document.createElement('span');
+        timestampElement.classList.add('timestamp');
+        timestampElement.textContent = formatTimestamp(timestamp);
+        messageElement.appendChild(timestampElement);
+    }
     
     // Add to chat messages
     chatMessages.appendChild(messageElement);
@@ -1122,9 +1134,16 @@ function sendMessage() {
         return;
     }
     
-    const message = currentMessageInput.value.trim();
+    const messageText = currentMessageInput.value;
     
-    if (!message) return;
+    // Simple validation - just check if the message is empty
+    if (!messageText.trim()) {
+        return;
+    }
+    
+    // Get sanitized message or use original if utils not available
+    const message = window.utils && window.utils.sanitizeText ? 
+        window.utils.sanitizeText(messageText) : messageText.trim();
     
     if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({

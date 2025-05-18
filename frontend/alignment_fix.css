@@ -1,0 +1,66 @@
+/* Direct swap of connection info and skip button positions */
+/* Move skip button to where connection info was */
+#skip-btn {
+    position: absolute !important;
+    left: 15px !important;
+    top: 15px !important;
+    z-index: 1000 !important;
+}
+
+/* Move connection info to where skip button was */
+.connection-info {
+    position: absolute !important;
+    right: 15px !important;
+    top: 15px !important;
+    z-index: 1000 !important;
+}
+
+/* Ensure both elements are visible and aligned */
+.chat-header {
+    position: relative;
+    height: 50px;
+}
+
+/* Ensure both elements have the same height */
+.connection-info, #skip-btn {
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Restore original font */
+body, button, input, textarea, .message, .message-content, .terminal-btn, .connection-label {
+    font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* Fix for the status indicator */
+.status-indicator {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* Fix for connection label */
+.connection-label {
+    display: flex;
+    align-items: center;
+    height: 28px;
+    line-height: 28px;
+}
+
+/* Remove any Content Security Policy that might be affecting font loading */
+meta[http-equiv="Content-Security-Policy"] {
+    content: "default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' ws: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;";
+}
+
+/* Username input styling */
+#login-screen .prompt-text {
+    margin-right: 5px; /* Small gap */
+    font-size: 0.9rem; /* Slightly smaller text */
+}
+
+#login-screen #username-input {
+    margin-left: 0;
+    max-width: 120px; /* Reduce width by approximately half */
+    width: 120px; /* Set explicit width */
+    font-size: 0.9rem; /* Slightly smaller text */
+}

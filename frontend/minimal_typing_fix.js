@@ -1,5 +1,6 @@
 // Minimal fix for typing indicator visibility and position on Render
 (function() {
+    'use strict'; // Enable strict mode for better security
     console.log('Typing indicator fix loaded');
     
     // Wait for DOM to be fully loaded
@@ -184,6 +185,8 @@
                 }
             } catch (error) {
                 console.error('Fix: Error in typing indicator fix:', error);
+                // Don't expose detailed error information
+                // Just silently fail instead of potentially exposing sensitive information
             }
         };
         
