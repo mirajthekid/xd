@@ -102,21 +102,3 @@ meta[http-equiv="Content-Security-Policy"] {
 #chat-screen .chat-header {
     margin-bottom: 15px; /* Add space between header and messages */
 }
-
-/* Restore default cursor behavior */
-input, textarea, [contenteditable="true"] {
-    caret-color: var(--accent-color, #00ff00); /* Use accent color for cursor */
-}
-
-/* Swipe-to-skip animation */
-@keyframes swipe-left-animation {
-    0% { transform: translateX(0); opacity: 1; }
-    100% { transform: translateX(-30px); opacity: 0.7; }
-}
-
-/* Class applied during swipe gesture */
-.swiping-left {
-    animation: swipe-left-animation 0.3s ease-out;
-}
-
-/* No longer needed - removed separate swipe instruction styling */

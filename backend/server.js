@@ -405,7 +405,7 @@ wss.on('connection', (ws, req) => {
             if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
               partnerConnection.send(JSON.stringify({
                 type: 'partner_skipped',
-                message: `${data.username} wants to skip`,
+                message: `${data.username} initiated skip protocol`,
                 username: data.username
               }));
               console.log(`Sent skip notification to partner ${partnerToNotify.username}`);
@@ -449,7 +449,7 @@ wss.on('connection', (ws, req) => {
               
               partnerConnection.send(JSON.stringify({
                 type: 'partner_skipped',
-                message: `${skipperUsername} wants to skip`,
+                message: `${skipperUsername} initiated skip protocol`,
                 username: skipperUsername
               }));
               
