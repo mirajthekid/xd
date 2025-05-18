@@ -750,6 +750,7 @@ body {
     align-items: center;
     z-index: 1000;
     backdrop-filter: blur(3px);
+    touch-action: none; /* Prevent scrolling on mobile */
 }
 
 .overlay.active {
@@ -851,11 +852,48 @@ body {
 }
 
 .skip-instructions {
-    font-size: 0.9rem;
-    color: var(--notification-color);
-    opacity: 0.8;
     margin-top: 15px;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
     font-style: italic;
+}
+
+/* Mobile-specific skip instructions */
+.mobile-skip-instructions {
+    display: none;
+}
+
+/* Overlay styles for skip functionality */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.skip-container {
+    text-align: center;
+    padding: 30px;
+    background-color: rgba(20, 20, 20, 0.9);
+    border: 1px solid var(--accent-color);
+    border-radius: 5px;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    animation: glitch 0.2s infinite;
 }
 
 /* Glitch animation for skip container */
@@ -880,6 +918,22 @@ body {
     }
 }
 
+/* Message timestamp styles */
+.message-timestamp {
+    font-size: 0.7rem;
+    color: var(--text-color);
+    opacity: 0.5;
+    margin-left: 10px;
+    display: none; /* Hide by default */
+}
+
+/* Show timestamp on hover for desktop */
+@media (min-width: 769px) {
+    .message-wrapper:hover .message-timestamp {
+        display: inline-block;
+    }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     html, body {
@@ -887,6 +941,25 @@ body {
         width: 100%;
         overflow: hidden;
         position: fixed;
+        touch-action: pan-y; /* Allow vertical scrolling only */
+        /* Prevent content from being pushed by keyboard */
+        height: 100vh; /* Use viewport height */
+        min-height: -webkit-fill-available; /* For iOS Safari */
+    }
+    
+    /* Mobile-specific skip instructions */
+    .mobile-skip-instructions {
+        display: block;
+    }
+    
+    /* Hide desktop skip instructions on mobile */
+    .desktop-skip-instructions {
+        display: none;
+    }
+    
+    /* Keep timestamps hidden on mobile */
+    .message-timestamp {
+        display: none !important;
     }
     
     .terminal {

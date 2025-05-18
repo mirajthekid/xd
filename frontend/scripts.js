@@ -966,6 +966,19 @@ function handleSocketMessage(event) {
                 let countdown = 3;
                 skipCountdown.textContent = countdown;
                 
+                // Add tap-anywhere-to-cancel functionality for mobile
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    // For mobile: Add click event listener to the overlay to cancel skip
+                    skipOverlay.addEventListener('click', function skipCancelHandler(e) {
+                        // Only if we're in an active skip countdown
+                        if (skipOverlay.classList.contains('active') && skipCountdownTimer) {
+                            cancelSkip();
+                            // Remove the event listener after it's used
+                            skipOverlay.removeEventListener('click', skipCancelHandler);
+                        }
+                    });
+                }
+                
                 skipCountdownTimer = setInterval(() => {
                     countdown--;
                     skipCountdown.textContent = countdown;
