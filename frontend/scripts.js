@@ -49,6 +49,12 @@ function handleMobileResize() {
         // Scroll to bottom when keyboard appears or disappears
         setTimeout(() => {
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // On iOS devices, we need to handle the viewport differently
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                document.body.style.height = window.innerHeight + 'px';
+                window.scrollTo(0, 0);
+            }
         }, 100);
     }
 }
@@ -1103,6 +1109,16 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
     // Scroll to bottom with a slight delay to ensure rendering is complete
     setTimeout(() => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // For mobile devices, ensure the viewport is adjusted correctly
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            // This helps prevent the viewport from jumping around
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                // If an input is focused (keyboard is likely visible)
+                // Make sure we can still see the latest messages
+                window.scrollTo(0, 0);
+            }
+        }
     }, 10);
 }
 
