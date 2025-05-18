@@ -54,6 +54,22 @@ function handleMobileResize() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Make the entire body activate username input on login page for mobile
+    document.body.addEventListener('click', (e) => {
+        // Only do this when login screen is active
+        if (loginScreen.classList.contains('active')) {
+            // Don't interfere with actual button clicks
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                return;
+            }
+            
+            // Focus the username input
+            if (usernameInput) {
+                usernameInput.focus();
+            }
+        }
+    });
+    
     // Immediately focus the username input on page load for mobile
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
         // For mobile devices, use a more aggressive approach to focus
@@ -162,15 +178,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Scroll chat to bottom first
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                     
-                    currentMessageInput.focus();
-                    
-                    // On mobile, this helps ensure the keyboard appears
-                    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                        // This trick helps force the keyboard to show on some mobile devices
-                        currentMessageInput.blur();
+                    // For mobile, don't auto-focus to prevent keyboard from popping up automatically
+                    // and causing layout issues
+                    if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                        // Only focus automatically on desktop
                         currentMessageInput.focus();
-                        
-                        // Add event listeners for keyboard showing/hiding on mobile
+                    } else {
+                        // On mobile, just add the resize listener without forcing focus
                         window.addEventListener('resize', handleMobileResize);
                     }
                 }
@@ -1055,13 +1069,20 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
         // Add sender name
         const senderSpan = document.createElement('span');
         senderSpan.className = 'message-sender';
-        senderSpan.textContent = sender === username ? 'You:' : `${sender}:`;
+        senderSpan.textContent = sender === username ? `${username}:` : `${sender}:`;
         messageWrapper.appendChild(senderSpan);
         
-        // Add message content
+        // Add message content with glitch effect
         const contentSpan = document.createElement('span');
         contentSpan.className = 'message-content';
-        contentSpan.textContent = content;
+        
+        // Apply glitch effect to the content
+        if (type !== 'system') {
+            contentSpan.appendChild(glitchText(content));
+        } else {
+            contentSpan.textContent = content;
+        }
+        
         messageWrapper.appendChild(contentSpan);
         
         // Add timestamp if provided
