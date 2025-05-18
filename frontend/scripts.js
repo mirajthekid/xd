@@ -17,6 +17,7 @@ const loginScreen = document.getElementById('login-screen');
 const waitingScreen = document.getElementById('waiting-screen');
 const chatScreen = document.getElementById('chat-screen');
 const skipOverlay = document.getElementById('skip-overlay');
+const cancelSkipBtn = document.getElementById('cancel-skip-btn'); // Cancel skip button
 const connectionLabel = document.querySelector('.connection-label'); // Connection label for online count
 
 const usernameInput = document.getElementById('username-input');
@@ -966,22 +967,10 @@ function handleSocketMessage(event) {
                 let countdown = 3;
                 skipCountdown.textContent = countdown;
                 
-                // Add tap-anywhere-to-cancel functionality for mobile
-                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                    // For mobile: Add click event listener to the overlay to cancel skip
-                    skipOverlay.addEventListener('click', function skipCancelHandler(e) {
-                        // Prevent default behavior and stop propagation to prevent input focus
-                        e.preventDefault();
-                        e.stopPropagation();
-                        
-                        // Only if we're in an active skip countdown
-                        if (skipOverlay.classList.contains('active') && skipCountdownTimer) {
-                            cancelSkip();
-                            // Remove the event listener after it's used
-                            skipOverlay.removeEventListener('click', skipCancelHandler);
-                        }
-                    });
-                }
+                // Add cancel button event listener
+                // Make sure to remove any previous listeners first
+                cancelSkipBtn.removeEventListener('click', cancelSkipBtnHandler);
+                cancelSkipBtn.addEventListener('click', cancelSkipBtnHandler);
                 
                 skipCountdownTimer = setInterval(() => {
                     countdown--;
@@ -1333,6 +1322,18 @@ function initiateSkip() {
             completeSkip();
         }
     }, 1000);
+}
+
+// Cancel skip button handler
+function cancelSkipBtnHandler(e) {
+    // Prevent default behavior
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only if we're in an active skip countdown
+    if (skipOverlay.classList.contains('active') && skipCountdownTimer) {
+        cancelSkip();
+    }
 }
 
 // Cancel skip

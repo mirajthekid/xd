@@ -859,6 +859,29 @@ body {
     font-style: italic;
 }
 
+/* Cancel skip button */
+.cancel-skip-btn {
+    margin-top: 20px;
+    padding: 8px 20px !important;
+    background-color: rgba(0, 100, 255, 0.3);
+    border: 1px solid #33bbff;
+    color: #33bbff;
+    font-size: 0.9rem !important;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-block;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 0 10px rgba(51, 187, 255, 0.5);
+}
+
+.cancel-skip-btn:hover, .cancel-skip-btn:active {
+    background-color: rgba(0, 100, 255, 0.5);
+    box-shadow: 0 0 15px rgba(51, 187, 255, 0.8);
+}
+
 /* Mobile-specific skip instructions */
 .mobile-skip-instructions {
     display: none;
@@ -946,6 +969,17 @@ body {
         /* Prevent content from being pushed by keyboard */
         height: 100vh; /* Use viewport height */
         min-height: -webkit-fill-available; /* For iOS Safari */
+    }
+    
+    /* Enhanced cancel button for mobile */
+    .cancel-skip-btn {
+        padding: 12px 30px !important;
+        font-size: 1rem !important;
+        margin-top: 25px;
+        min-width: 150px;
+        /* Make tap target larger for mobile */
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0,0,0,0);
     }
     
     /* Mobile-specific skip instructions */
