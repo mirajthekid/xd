@@ -5,6 +5,9 @@ const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 const path = require('path');
 
+// Import typing debug logger
+const { logTypingEvent } = require('./debug_typing_server');
+
 // Initialize express app
 const app = express();
 
@@ -270,6 +273,7 @@ wss.on('connection', (ws, req) => {
           break;
           
         case 'typing':
+          logTypingEvent(`SERVER: Heard someone typing! Message: ${JSON.stringify(data)}`);
           console.log(`Typing event received from ${userId}, isTyping: ${data.isTyping}, username: ${data.username}`);
           
           // If roomId is provided, use it directly
@@ -279,35 +283,60 @@ wss.on('connection', (ws, req) => {
           if (data.roomId && activeRooms.has(data.roomId)) {
             typingTargetRoom = activeRooms.get(data.roomId);
             typingTargetPartner = typingTargetRoom.users.find(u => u.id !== userId);
+            logTypingEvent(`Using provided roomId ${data.roomId} to find partner`);
             console.log(`Using provided roomId ${data.roomId} to find partner`);
+            
+            // Verify the sender is actually in this room
+            const senderInRoom = typingTargetRoom.users.some(u => u.id === userId);
+            logTypingEvent(`Sender ${userId} is in room ${data.roomId}: ${senderInRoom}`);
+            
+            if (!senderInRoom) {
+              logTypingEvent(`WARNING: Sender ${userId} is not in room ${data.roomId}!`);
+            }
           } else {
             // Otherwise search for the room containing this user
-            activeRooms.forEach((room) => {
+            activeRooms.forEach((room, roomId) => {
               if (room.users.some(u => u.id === userId)) {
                 typingTargetRoom = room;
                 typingTargetPartner = room.users.find(u => u.id !== userId);
+                logTypingEvent(`Fallback: Found room ${roomId} with user ${userId}`);
                 console.log(`Found room with user ${userId}`);
               }
             });
           }
           
           if (typingTargetRoom && typingTargetPartner) {
+            logTypingEvent(`SERVER: Telling friend ${typingTargetPartner.username} that ${data.username} is typing.`);
             console.log(`Found partner: ${typingTargetPartner.username} (${typingTargetPartner.id})`);
             
             const partnerConnection = userConnections.get(typingTargetPartner.id);
+            const connectionOpen = partnerConnection && partnerConnection.readyState === WebSocket.OPEN;
             
-            if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
+            logTypingEvent(`Friend's connection open? ${connectionOpen}`);
+            logTypingEvent(`Friend's connection state: ${partnerConnection ? partnerConnection.readyState : 'No connection'} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)`);
+            
+            if (connectionOpen) {
               const typingMessage = {
                 type: 'typing',
                 isTyping: data.isTyping,
                 username: data.username
               };
+              logTypingEvent(`Sending typing message to partner: ${JSON.stringify(typingMessage)}`);
               console.log(`Sending typing message to partner: ${JSON.stringify(typingMessage)}`);
-              partnerConnection.send(JSON.stringify(typingMessage));
+              
+              try {
+                partnerConnection.send(JSON.stringify(typingMessage));
+                logTypingEvent(`Successfully sent typing message to partner`);
+              } catch (error) {
+                logTypingEvent(`ERROR sending typing message to partner: ${error.message}`);
+                console.error(`Error sending typing message to partner:`, error);
+              }
             } else {
+              logTypingEvent(`Partner connection not available or not open`);
               console.log(`Partner connection not available or not open`);
             }
           } else {
+            logTypingEvent(`No room or partner found for user ${userId}`);
             console.log(`No room or partner found for user ${userId}`);
           }
           break;
