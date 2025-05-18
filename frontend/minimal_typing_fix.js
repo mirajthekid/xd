@@ -12,21 +12,64 @@
     function applyFix() {
         console.log('Applying typing indicator fix');
         
+        // Disable skip sound
+        if (window.playSound) {
+            const originalPlaySound = window.playSound;
+            window.playSound = function(soundType) {
+                // Don't play the skip sound
+                if (soundType === 'skip') {
+                    return;
+                }
+                // Play other sounds normally
+                originalPlaySound.call(this, soundType);
+            };
+        }
+        
         // Add CSS to ensure typing indicator is visible and positioned correctly
         const styleElement = document.createElement('style');
         styleElement.textContent = `
-            /* Create a small, visible typing indicator */
+            /* Base styles for typing indicator */
             .typing-indicator {
-                position: fixed !important;
-                bottom: 70px !important;
-                left: 10px !important;
-                z-index: 9999 !important;
                 background-color: rgba(0, 0, 0, 0.7) !important;
                 border-radius: 4px !important;
                 padding: 4px 8px !important;
                 font-size: 10px !important;
                 max-width: 80% !important;
-                border: 1px solid var(--accent-color, #00aaff) !important;
+                border: none !important;
+                box-shadow: none !important;
+                z-index: 9999 !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                transition: opacity 0.3s ease, visibility 0.3s ease !important;
+            }
+            
+            /* Remove shadow from message input */
+            #message-input, .chat-message-input {
+                box-shadow: none !important;
+            }
+            
+            /* Desktop positioning - above chat input */
+            @media (min-width: 769px) {
+                .typing-indicator {
+                    position: absolute !important;
+                    bottom: 100% !important;
+                    left: 30px !important;
+                    margin-bottom: 5px !important;
+                }
+                
+                /* Make chat input container relative for positioning */
+                #chat-input-container {
+                    position: relative !important;
+                }
+            }
+            
+            /* Mobile positioning */
+            @media (max-width: 768px) {
+                .typing-indicator {
+                    position: fixed !important;
+                    bottom: 70px !important;
+                    left: 10px !important;
+                }
             }
             
             /* Ensure visibility when active */
@@ -53,7 +96,15 @@
         function hideTypingIndicator(indicator) {
             if (indicator) {
                 indicator.classList.remove('active');
-                indicator.style.display = 'none';
+                indicator.style.opacity = '0';
+                indicator.style.visibility = 'hidden';
+                
+                // Wait for transition to complete before hiding completely
+                setTimeout(() => {
+                    if (!indicator.classList.contains('active')) {
+                        indicator.style.display = 'none';
+                    }
+                }, 300); // Match the transition duration
             }
         }
         
@@ -90,9 +141,26 @@
                         typingIndicator.style.display = 'block';
                         typingIndicator.style.visibility = 'visible';
                         typingIndicator.style.opacity = '1';
-                        typingIndicator.style.position = 'fixed';
-                        typingIndicator.style.bottom = '70px';
-                        typingIndicator.style.left = '10px';
+                        
+                        // Apply different styles based on screen size
+                        if (window.innerWidth <= 768) {
+                            // Mobile styles
+                            typingIndicator.style.position = 'fixed';
+                            typingIndicator.style.bottom = '70px';
+                            typingIndicator.style.left = '10px';
+                        } else {
+                            // Desktop styles - position above chat input
+                            typingIndicator.style.position = 'absolute';
+                            typingIndicator.style.bottom = '100%';
+                            typingIndicator.style.left = '30px';
+                            
+                            // Try to move the typing indicator to the chat input container for proper positioning
+                            const chatInputContainer = document.getElementById('chat-input-container');
+                            if (chatInputContainer && typingIndicator.parentElement !== chatInputContainer) {
+                                chatInputContainer.appendChild(typingIndicator);
+                            }
+                        }
+                        
                         typingIndicator.style.zIndex = '9999';
                         
                         // Add a safety timeout to hide the typing indicator after 5 seconds
