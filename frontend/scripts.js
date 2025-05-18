@@ -453,15 +453,26 @@ function handleSocketMessage(event) {
                 displayMessage(data.content, data.sender, 'message', data.timestamp);
                 break;
                 
-            case 'typing':
+                        case 'typing':
                 // Handle typing indicator
-                if (data.isTyping) {
-                    // Show typing indicator with partner's username
-                    typingText.textContent = `${partnerUsername} is typing...`;
-                    typingIndicator.classList.add('active');
-                } else {
-                    // Hide typing indicator
-                    typingIndicator.classList.remove('active');
+                console.log('Received typing status:', data);
+                if (data.username !== username) {  // Don't show our own typing indicator
+                    if (data.isTyping) {
+                        // Show typing indicator with partner's username
+                        console.log('Showing typing indicator for:', data.username);
+                        if (typingText) {
+                            typingText.textContent = ${data.username} is typing...;
+                        }
+                        if (typingIndicator) {
+                            typingIndicator.classList.add('active');
+                        }
+                    } else {
+                        // Hide typing indicator
+                        console.log('Hiding typing indicator');
+                        if (typingIndicator) {
+                            typingIndicator.classList.remove('active');
+                        }
+                    }
                 }
                 break;
                 
@@ -953,15 +964,26 @@ function handleSocketMessage(event) {
                 displayMessage(data.content, data.sender, 'message', data.timestamp);
                 break;
                 
-            case 'typing':
+                        case 'typing':
                 // Handle typing indicator
-                if (data.isTyping) {
-                    // Show typing indicator with partner's username
-                    typingText.textContent = `${partnerUsername} is typing...`;
-                    typingIndicator.classList.add('active');
-                } else {
-                    // Hide typing indicator
-                    typingIndicator.classList.remove('active');
+                console.log('Received typing status:', data);
+                if (data.username !== username) {  // Don't show our own typing indicator
+                    if (data.isTyping) {
+                        // Show typing indicator with partner's username
+                        console.log('Showing typing indicator for:', data.username);
+                        if (typingText) {
+                            typingText.textContent = ${data.username} is typing...;
+                        }
+                        if (typingIndicator) {
+                            typingIndicator.classList.add('active');
+                        }
+                    } else {
+                        // Hide typing indicator
+                        console.log('Hiding typing indicator');
+                        if (typingIndicator) {
+                            typingIndicator.classList.remove('active');
+                        }
+                    }
                 }
                 break;
                 
@@ -1201,43 +1223,61 @@ function showSystemMessage(message) {
 }
 
 // Handle typing event
-function handleTypingEvent() {
-    // Make sure we're in a chat room
-    if (!roomId || !partnerUsername) {
+function handleTypingEvent(event) {
+    // Don't process if it's a key event that's not a character key
+    if (event && event.type === 'keydown' && 
+        (event.ctrlKey || event.altKey || event.metaKey || 
+         event.key === 'Control' || event.key === 'Alt' || event.key === 'Meta' ||
+         event.key === 'Shift' || event.key === 'CapsLock' ||
+         event.key === 'Escape' || event.key === 'Tab' ||
+         event.key === 'ArrowUp' || event.key === 'ArrowDown' ||
+         event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
         return;
     }
     
-    // Force a small delay to ensure the DOM is ready
-    setTimeout(() => {
-        // Get the input element directly
-        const input = document.getElementById('message-input');
-        if (!input) {
-            console.error('Message input not found in handleTypingEvent');
-            return;
-        }
-        
-        // Check if typing state has changed
-        const currentlyTyping = input.value.length > 0;
-        
-        // Clear any existing typing timeout
-        if (typingTimer) {
-            clearTimeout(typingTimer);
-        }
-        
-        // Send typing status regardless of state change to ensure it works
-        // This is more aggressive but ensures the typing indicator works
+    // Make sure we're in a chat room and socket is connected
+    if (!roomId || !partnerUsername || !socket || socket.readyState !== WebSocket.OPEN) {
+        return;
+    }
+    
+    // Get the input element directly
+    const input = document.getElementById('message-input');
+    if (!input) {
+        console.error('Message input not found in handleTypingEvent');
+        return;
+    }
+    
+    // Check if typing state has changed
+    const currentlyTyping = input.value.length > 0;
+    
+    // Clear any existing typing timeout
+    if (typingTimer) {
+        clearTimeout(typingTimer);
+    }
+    
+    // Only send if typing state changed
+    if (currentlyTyping !== isTyping) {
         isTyping = currentlyTyping;
         sendTypingStatus(isTyping);
-        
-        // If user is typing, set a timeout to clear typing status after inactivity
-        if (isTyping) {
-            typingTimer = setTimeout(() => {
+    } else if (isTyping) {
+        // If still typing, reset the timer
+        typingTimer = setTimeout(() => {
+            isTyping = false;
+            sendTypingStatus(false);
+            console.log('Typing timeout reached, set isTyping to false');
+        }, 1500); // 1.5 seconds of inactivity before stopping typing indicator
+    }
+    
+    // If user is typing, set a timeout to clear typing status after inactivity
+    if (isTyping) {
+        typingTimer = setTimeout(() => {
+            if (isTyping) {  // Double-check in case it changed
                 isTyping = false;
                 sendTypingStatus(false);
                 console.log('Typing timeout reached, set isTyping to false');
-            }, 1000); // 1 second of inactivity before stopping typing indicator
-        }
-    }, 10); // Small delay to ensure DOM is ready
+            }
+        }, 1500); // 1.5 seconds of inactivity before stopping typing indicator
+    }
 }
 
 // Helper function to send typing status
