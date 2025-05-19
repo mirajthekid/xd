@@ -1,4 +1,9 @@
 /* Text Glow Effect for White and Blue Text */
+@font-face {
+    font-family: 'ApostropheFix';
+    src: local('Arial'), local('Helvetica'), local('sans-serif');
+    unicode-range: U+0027; /* Target only the apostrophe character */
+}
 
 /* White text glow effect */
 .terminal, .terminal-screen, .chat-messages, .message-content, .prompt-text, 

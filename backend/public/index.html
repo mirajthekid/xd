@@ -28,58 +28,55 @@
         }
         
         .animated-text {
-            font-size: 4rem;
+            font-size: 3rem;
             font-weight: bold;
             color: #f0f0f0;
             margin-bottom: 1.5rem;
             position: relative;
             display: inline-block;
             letter-spacing: 2px;
-            animation: textFlicker 4s infinite alternate;
+            animation: textFlicker 3s infinite alternate;
             text-transform: lowercase;
             border-right: 2px solid transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-shadow: 0 0 5px rgba(0, 170, 255, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .animated-text {
+                font-size: 2.2rem;
+                letter-spacing: 1px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .animated-text {
+                font-size: 1.8rem;
+                letter-spacing: 0.5px;
+            }
         }
         
         @keyframes textFlicker {
-            0% {
+            0%, 100% {
                 opacity: 1;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
-                transform: skewX(0);
+                text-shadow: 0 0 5px rgba(0, 170, 255, 0.3);
+                transform: translateY(0) skewX(0);
             }
-            10% {
-                opacity: 0.8;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.3);
-                transform: skewX(0);
-            }
-            11% {
-                opacity: 1;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
-                transform: skewX(0);
+            25% {
+                opacity: 0.95;
+                text-shadow: 0 0 8px rgba(0, 170, 255, 0.4);
+                transform: translateY(-1px) skewX(0.5deg);
             }
             50% {
                 opacity: 0.9;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.2);
-                transform: skewX(-1deg);
+                text-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+                transform: translateY(0) skewX(-0.5deg);
             }
-            60% {
-                opacity: 1;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
-                transform: skewX(0);
-            }
-            90% {
-                opacity: 0.8;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.3);
-                transform: skewX(0);
-            }
-            91% {
-                opacity: 1;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
-                transform: skewX(0);
-            }
-            100% {
-                opacity: 0.9;
-                text-shadow: 0 0 1px rgba(255, 255, 255, 0.2);
-                transform: skewX(1deg);
+            75% {
+                opacity: 0.95;
+                text-shadow: 0 0 7px rgba(0, 170, 255, 0.4);
+                transform: translateY(1px) skewX(0.5deg);
             }
         }
         
@@ -88,10 +85,11 @@
             position: absolute;
             top: 0;
             right: -5px;
-            width: 4px;
+            width: 3px;
             height: 100%;
-            background-color: #f0f0f0;
-            animation: cursorBlink 1s infinite;
+            background-color: rgba(0, 170, 255, 0.8);
+            animation: cursorBlink 0.8s infinite;
+            box-shadow: 0 0 5px rgba(0, 170, 255, 0.5);
         }
         
         @keyframes cursorBlink {
@@ -99,14 +97,164 @@
             50%, 100% { opacity: 0; }
         }
         
+        .glow-text {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 8px rgba(0, 170, 255, 0.7),
+                        0 0 16px rgba(0, 170, 255, 0.5),
+                        0 0 24px rgba(0, 170, 255, 0.3);
+            margin-bottom: 1.5rem;
+            letter-spacing: 2px;
+            position: relative;
+            display: inline-block;
+            padding-right: 12px;
+        }
+        
+        .glow-text::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 15%;
+            height: 70%;
+            width: 4px;
+            background-color: rgba(0, 170, 255, 0.8);
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.8);
+            animation: cursorBlink 1s step-end infinite;
+        }
+        
+        @keyframes cursorBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        @media (max-width: 768px) {
+            .glow-text {
+                font-size: 2.5rem;
+            }
+        }
+        
         .warning-text {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #f0f0f0;
             margin: 1.5rem 0;
             line-height: 1.6;
             max-width: 600px;
             margin-left: auto;
             margin-right: auto;
+            opacity: 0.9;
+        }
+        
+        .terms-container {
+            max-width: 400px;
+            margin: 0.5rem 0 1rem 0;
+            margin-left: auto;
+            text-align: left;
+            padding: 0 20px 0 0;
+            display: flex;
+            justify-content: flex-end;
+            transform: translateX(30px);
+        }
+        
+        .terms-checkbox {
+            display: flex;
+            align-items: flex-start;
+            position: relative;
+            cursor: pointer;
+            font-size: 0.6rem;
+            color: #aaa;
+            line-height: 1.2;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .terms-text {
+            transform: scale(0.85);
+            transform-origin: left center;
+            display: inline-block;
+            width: 100%;
+            margin-left: 12px;
+            max-width: 350px;
+        }
+        
+        .highlight {
+            color: #00aaff;
+            cursor: pointer;
+        }
+        
+        .highlight:hover {
+            text-decoration: underline;
+        }
+        
+        .terms-checkbox input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+        
+        .checkmark {
+            position: relative;
+            top: 21px;
+            left: 5px;
+            height: 12px;
+            width: 12px;
+            min-width: 12px;
+            background-color: #111;
+            border: 1px solid #00aaff;
+            margin: 0 8px 0 0;
+            border-radius: 2px;
+            flex-shrink: 0;
+            transition: background-color 0.2s;
+        }
+        
+        .terms-checkbox:hover input ~ .checkmark {
+            background-color: #222;
+        }
+        
+        .terms-checkbox input:checked ~ .checkmark {
+            background-color: #00aaff;
+        }
+        
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+        
+        .terms-checkbox input:checked ~ .checkmark {
+            background-color: #00aaff;
+        }
+        
+        .terms-checkbox input:checked ~ .checkmark:after {
+            content: "";
+            position: absolute;
+            display: block;
+            left: 4px;
+            top: 1px;
+            width: 4px;
+            height: 8px;
+            border: solid #000;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        
+        .terms-text {
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        .animated-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.2) !important;
+        }
+        
+        .animated-button:disabled:hover::before {
+            left: -100%;
         }
         
         .animated-button {
@@ -148,14 +296,84 @@
 </head>
 <body>
     <div class="container">
-        <div id="animated-title" class="animated-text">typeshi.co</div>
-        <div class="warning-text">Please do not be fooled, tricked, scammed by anyone on this app.</div>
-        <a href="/chat" class="animated-button">ENTER CHAT</a>
+        <div id="main-title" class="glow-text">typeshi.fun</div>
+        
+        <div class="terms-container" style="margin-left: auto; max-width: 400px;">
+            <label class="terms-checkbox">
+                <input type="checkbox" id="terms-checkbox">
+                <span class="checkmark"></span>
+                <span class="terms-text">
+                    I certify I have read and agree to the <span class="highlight">Terms of Service</span> and confirm that you have read <span class="highlight">Privacy Policy</span>. 
+                    I certify I am at least 18-years old and have reached the age of majority where I live.
+                </span>
+            </label>
+        </div>
+        
+        <div style="margin-top: 10px;">
+            <a href="#" id="enter-chat-btn" class="animated-button">ENTER CHAT</a>
+            <div id="terms-warning" style="color: #ff4444; margin-top: 10px; display: none; font-size: 0.8rem; text-align: center; text-shadow: none;">
+                Please agree to Terms of Service and Privacy Policy first
+            </div>
+        </div>
     </div>
     
     <script>
-        // No need for letter-by-letter animation anymore
-        // The CSS handles the animation for the entire text
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkbox = document.getElementById('terms-checkbox');
+            const enterButton = document.getElementById('enter-chat-btn');
+            const warning = document.getElementById('terms-warning');
+            let lastKeyPressTime = 0;
+            
+            // Initialize button state
+            enterButton.disabled = !checkbox.checked;
+            
+            // Single event listener for checkbox changes
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    warning.style.display = 'none';
+                    enterButton.href = '/chat';
+                } else {
+                    enterButton.href = '#';
+                }
+                enterButton.disabled = !this.checked;
+            });
+            
+            // Handle button click
+            enterButton.addEventListener('click', function(e) {
+                if (!checkbox.checked) {
+                    e.preventDefault();
+                    warning.style.display = 'block';
+                }
+            });
+            
+            // Handle keyboard events
+            document.addEventListener('keydown', function(e) {
+                // Only handle Enter key (key code 13)
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    const now = Date.now();
+                    
+                    // If last key press was less than 1 second ago, treat as button press
+                    if (now - lastKeyPressTime < 1000) {
+                        // Second Enter press - click the button
+                        enterButton.click();
+                    } else {
+                        // First Enter press - toggle the checkbox
+                        checkbox.checked = !checkbox.checked;
+                        // Trigger the change event manually
+                        const event = new Event('change');
+                        checkbox.dispatchEvent(event);
+                        // Focus the button for better UX
+                        enterButton.focus();
+                    }
+                    
+                    lastKeyPressTime = now;
+                    e.preventDefault();
+                }
+            });
+            
+            // Focus the document on load to ensure key events work
+            window.focus();
+        });
     </script>
 </body>
 </html>

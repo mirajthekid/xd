@@ -18,7 +18,7 @@
 }
 
 body {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', 'ApostropheFix', monospace;
     background-color: var(--bg-color);
     color: var(--text-color);
     display: flex;
@@ -246,8 +246,8 @@ body {
     background-color: transparent;
     border: none;
     color: var(--text-color);
+    font-family: 'JetBrains Mono', 'ApostropheFix', monospace;
     padding: 8px 12px;
-    font-family: 'JetBrains Mono', monospace;
     width: 100%;
     max-width: 80%;
     height: 40px;
