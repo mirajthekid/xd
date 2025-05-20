@@ -37,40 +37,64 @@ app.use((req, res, next) => {
   next();
 });
 
+// Track daily visits
+const dailyVisits = new Map(); // Stores date -> { count, countryStats }
+
 // Middleware to track visitors and their countries
 app.use(async (req, res, next) => {
-  if (req.path !== '/api/status') {
+  // Only track page views (not API calls or static assets)
+  const isPageView = req.path === '/' || req.path === '/chat';
+  
+  if (isPageView) {
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     
     // Skip counting if it's your IP
-    if (clientIp && clientIp.includes('142.112.216.34')) {
+    if (clientIp && (clientIp.includes('142.112.216.34') || clientIp === '::1' || clientIp === '127.0.0.1')) {
       return next();
     }
     
-    visitorCount++;
-    try {
-      // Get client IP
-      let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-      if (clientIp && clientIp.includes(',')) {
-        clientIp = clientIp.split(',')[0].trim();
-      }
-      // Remove IPv6 prefix if present
-      if (clientIp && clientIp.startsWith('::ffff:')) {
-        clientIp = clientIp.replace('::ffff:', '');
-      }
-      // Only query if we have a token
-      if (IPINFO_TOKEN && clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') {
-        const url = `https://ipinfo.io/${clientIp}/json?token=${IPINFO_TOKEN}`;
-        const response = await axios.get(url, { timeout: 2000 });
-        if (response.data && response.data.country) {
-          const country = response.data.country;
-          countryStats[country] = (countryStats[country] || 0) + 1;
-        }
-      }
-    } catch (error) {
-      // Ignore errors (do not block request)
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Initialize today's stats if not exists
+    if (!dailyVisits.has(today)) {
+      dailyVisits.set(today, { count: 0, countryStats: {} });
     }
+    
+    const todayStats = dailyVisits.get(today);
+    todayStats.count++;
+    
+    // Track country if IP is available
+    if (IPINFO_TOKEN && clientIp) {
+      try {
+        // Clean IP address
+        let cleanIp = clientIp;
+        if (cleanIp.includes(',')) {
+          cleanIp = cleanIp.split(',')[0].trim();
+        }
+        if (cleanIp.startsWith('::ffff:')) {
+          cleanIp = cleanIp.replace('::ffff:', '');
+        }
+        
+        // Skip local IPs
+        if (cleanIp !== '::1' && cleanIp !== '127.0.0.1') {
+          const url = `https://ipinfo.io/${cleanIp}/json?token=${IPINFO_TOKEN}`;
+          const response = await axios.get(url, { timeout: 2000 });
+          if (response.data?.country) {
+            const country = response.data.country;
+            todayStats.countryStats[country] = (todayStats.countryStats[country] || 0) + 1;
+          }
+        }
+      } catch (error) {
+        // Ignore errors (do not block request)
+        console.error('Error getting country info:', error.message);
+      }
+    }
+    
+    // Update global visitor count (all-time)
+    visitorCount++;
   }
+  
   next();
 });
 
@@ -615,13 +639,19 @@ wss.on('connection', (ws, req) => {
   // ...
 });
 
-// Secret route for visitor counter with country stats
+// Secret stats endpoint - requires key
 app.get('/api/secret-stats', (req, res) => {
   const providedKey = req.query.key;
   if (providedKey === SECRET_KEY) {
+    // Convert Map to object for JSON serialization
+    const dailyVisitsObj = {};
+    for (const [date, stats] of dailyVisits) {
+      dailyVisitsObj[date] = stats;
+    }
+    
     res.json({
       totalVisitors: visitorCount,
-      countryStats: countryStats,
+      dailyVisits: dailyVisitsObj,
       lastUpdated: new Date().toISOString()
     });
   } else {
