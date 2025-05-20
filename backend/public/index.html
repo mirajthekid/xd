@@ -258,22 +258,25 @@
         }
         
         .animated-button {
-            display: inline-block;
-            background-color: #00aaff;
-            color: #000;
-            padding: 15px 30px;
-            text-decoration: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-family: 'Roboto Mono', monospace;
             font-weight: bold;
+            color: #f0f0f0;
+            background: linear-gradient(45deg, #0066cc, #00aaff);
+            border: none;
             border-radius: 4px;
-            margin-top: 1.5rem;
+            cursor: pointer;
             position: relative;
             overflow: hidden;
             transition: all 0.3s ease;
-            box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            text-transform: lowercase;
+            letter-spacing: 2px;
         }
         
         .animated-button:hover {
-            background-color: #33bbff;
+            background: linear-gradient(45deg, #33bbff, #00aaff);
             transform: scale(1.05);
             box-shadow: 0 0 20px rgba(0, 170, 255, 0.8);
         }
@@ -298,21 +301,35 @@
     <div class="container">
         <div id="main-title" class="glow-text">typeshi.fun</div>
         
-        <div class="terms-container" style="margin-left: auto; max-width: 400px;">
-            <label class="terms-checkbox">
-                <input type="checkbox" id="terms-checkbox">
-                <span class="checkmark"></span>
-                <span class="terms-text">
-                    I certify I have read and agree to the <span class="highlight">Terms of Service</span> and confirm that you have read <span class="highlight">Privacy Policy</span>. 
+        <div class="terms-container" style="margin-left: auto; max-width: 400px;" role="region" aria-label="Terms and Conditions">
+            <label class="terms-checkbox" for="terms-checkbox">
+                <input 
+                    type="checkbox" 
+                    id="terms-checkbox" 
+                    aria-describedby="terms-description"
+                    aria-required="true">
+                <span class="checkmark" aria-hidden="true"></span>
+                <span class="terms-text" id="terms-description">
+                    I certify I have read and agree to the <a href="/terms.html" class="highlight" tabindex="0">Terms of Service</a> and confirm that you have read the <a href="/privacy.html" class="highlight" tabindex="0">Privacy Policy</a>. 
                     I certify I am at least 18-years old and have reached the age of majority where I live.
                 </span>
             </label>
         </div>
         
-        <div style="margin-top: 10px;">
-            <a href="#" id="enter-chat-btn" class="animated-button">ENTER CHAT</a>
-            <div id="terms-warning" style="color: #ff4444; margin-top: 10px; display: none; font-size: 0.8rem; text-align: center; text-shadow: none;">
-                Please agree to Terms of Service and Privacy Policy first
+        <div style="margin-top: 10px;" role="region" aria-label="Chat Actions">
+            <button 
+                id="enter-chat-btn" 
+                class="animated-button"
+                aria-disabled="true"
+                aria-describedby="terms-warning">
+                ENTER CHAT
+            </button>
+            <div 
+                id="terms-warning" 
+                style="color: #ff4444; margin-top: 10px; display: none; font-size: 0.8rem; text-align: center; text-shadow: none;"
+                role="alert"
+                aria-live="polite">
+                Please agree to Terms of Service and Privacy Policy
             </div>
         </div>
     </div>
@@ -322,57 +339,98 @@
             const checkbox = document.getElementById('terms-checkbox');
             const enterButton = document.getElementById('enter-chat-btn');
             const warning = document.getElementById('terms-warning');
+            
+            // Check if required elements exist
+            if (!checkbox || !enterButton || !warning) {
+                console.error('Required elements not found');
+                return;
+            }
+            
             let lastKeyPressTime = 0;
+            const DEBOUNCE_TIME = 1000; // 1 second
             
             // Initialize button state
-            enterButton.disabled = !checkbox.checked;
+            function updateButtonState() {
+                const isChecked = checkbox.checked;
+                enterButton.disabled = !isChecked;
+                enterButton.setAttribute('aria-disabled', !isChecked);
+            }
             
-            // Single event listener for checkbox changes
-            checkbox.addEventListener('change', function() {
-                if (this.checked) {
+            // Handle terms acceptance
+            function handleTermsAcceptance() {
+                if (checkbox.checked) {
                     warning.style.display = 'none';
-                    enterButton.href = '/chat';
+                    enterButton.setAttribute('aria-live', 'polite');
+                    // Redirect to chat when button is clicked
+                    enterButton.onclick = function() {
+                        window.location.href = '/chat';
+                        return false;
+                    };
                 } else {
-                    enterButton.href = '#';
+                    enterButton.onclick = null;
                 }
-                enterButton.disabled = !this.checked;
-            });
+                updateButtonState();
+            }
             
-            // Handle button click
-            enterButton.addEventListener('click', function(e) {
-                if (!checkbox.checked) {
-                    e.preventDefault();
-                    warning.style.display = 'block';
-                }
-            });
+            // Initialize button state
+            updateButtonState();
             
-            // Handle keyboard events
-            document.addEventListener('keydown', function(e) {
-                // Only handle Enter key (key code 13)
-                if (e.key === 'Enter' || e.keyCode === 13) {
-                    const now = Date.now();
-                    
-                    // If last key press was less than 1 second ago, treat as button press
-                    if (now - lastKeyPressTime < 1000) {
-                        // Second Enter press - click the button
-                        enterButton.click();
-                    } else {
-                        // First Enter press - toggle the checkbox
-                        checkbox.checked = !checkbox.checked;
-                        // Trigger the change event manually
-                        const event = new Event('change');
-                        checkbox.dispatchEvent(event);
-                        // Focus the button for better UX
-                        enterButton.focus();
+            // Add event listeners with proper cleanup references
+            function setupEventListeners() {
+                // Single event listener for checkbox changes
+                checkbox.addEventListener('change', handleTermsAcceptance);
+                
+                // Handle button click
+                enterButton.addEventListener('click', function(e) {
+                    if (!checkbox.checked) {
+                        e.preventDefault();
+                        warning.style.display = 'block';
+                        warning.setAttribute('role', 'alert');
+                        warning.setAttribute('aria-live', 'assertive');
                     }
-                    
-                    lastKeyPressTime = now;
-                    e.preventDefault();
-                }
-            });
+                });
+                
+                // Handle keyboard events
+                document.addEventListener('keydown', handleKeyDown);
+            }
             
-            // Focus the document on load to ensure key events work
-            window.focus();
+            // Handle keyboard navigation
+            function handleKeyDown(e) {
+                // Only handle Enter key
+                if (e.key !== 'Enter' && e.keyCode !== 13) return;
+                
+                e.preventDefault();
+                const now = Date.now();
+                
+                // If last key press was within the debounce time, treat as button press
+                if (now - lastKeyPressTime < DEBOUNCE_TIME) {
+                    enterButton.click();
+                } else {
+                    // Toggle the checkbox
+                    checkbox.checked = !checkbox.checked;
+                    // Trigger the change event
+                    checkbox.dispatchEvent(new Event('change'));
+                    // Focus the button for better UX
+                    enterButton.focus();
+                }
+                
+                lastKeyPressTime = now;
+            }
+            
+            // Cleanup function
+            function cleanup() {
+                checkbox.removeEventListener('change', handleTermsAcceptance);
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Focus the checkbox on load for better keyboard navigation
+            checkbox.focus();
+            
+            // Clean up event listeners if needed (e.g., for SPA navigation)
+            window.addEventListener('beforeunload', cleanup);
         });
     </script>
 </body>
