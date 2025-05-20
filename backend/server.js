@@ -40,6 +40,13 @@ app.use((req, res, next) => {
 // Middleware to track visitors and their countries
 app.use(async (req, res, next) => {
   if (req.path !== '/api/status') {
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    // Skip counting if it's your IP
+    if (clientIp && clientIp.includes('142.112.216.34')) {
+      return next();
+    }
+    
     visitorCount++;
     try {
       // Get client IP
