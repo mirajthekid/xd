@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visitor Statistics</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    .stats {
+      margin: 20px 0;
+    }
+    #countryChart {
+      max-width: 800px;
+      margin: 30px 0;
+    }
+    .back-button {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Visitor Statistics</h1>
+    <div class="stats">
+      <p>Total Visitors: <span id="totalVisitors">0</span></p>
+      <p>Last Updated: <span id="lastUpdated">-</span></p>
+    </div>
+    
+    <h2>Visitors by Country</h2>
+    <canvas id="countryChart"></canvas>
+    
+    <a href="/" class="back-button">Back to Chat</a>
+  </div>
+
+  <script>
+    // Get the secret key from URL or prompt
+    const urlParams = new URLSearchParams(window.location.search);
+    let secretKey = urlParams.get('key');
+    
+    if (!secretKey) {
+      secretKey = localStorage.getItem('secretKey');
+      if (!secretKey) {
+        secretKey = prompt('Enter secret key:');
+        if (secretKey) {
+          localStorage.setItem('secretKey', secretKey);
+        } else {
+          alert('Secret key is required');
+          window.location.href = '/';
+        }
+      }
+    } else {
+      localStorage.setItem('secretKey', secretKey);
+    }
+
+    // Fetch stats from backend
+    async function fetchStats() {
+      try {
+        const response = await fetch(`/api/secret-stats?key=${secretKey}`);
+        if (!response.ok) {
+          throw new Error('Unauthorized');
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        alert('Failed to load stats. Please check your secret key.');
+        localStorage.removeItem('secretKey');
+        window.location.href = '/';
+        return null;
+      }
+    }
+
+    // Update the page with stats
+    async function updateStats() {
+      const stats = await fetchStats();
+      if (!stats) return;
+
+      document.getElementById('totalVisitors').textContent = stats.totalVisitors.toLocaleString();
+      document.getElementById('lastUpdated').textContent = new Date(stats.lastUpdated).toLocaleString();
+
+      // Prepare data for chart
+      const countries = Object.entries(stats.countryStats || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      const ctx = document.getElementById('countryChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: countries.map(c => c[0]),
+          datasets: [{
+            label: 'Visitors',
+            data: countries.map(c => c[1]),
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+    }
+
+
+    // Load stats when page loads
+    updateStats();
+  </script>
+</body>
+</html>

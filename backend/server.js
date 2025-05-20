@@ -5,9 +5,17 @@ const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 const path = require('path');
 const { sanitizeUsername, sanitizeMessage } = require('./utils/sanitize');
+const axios = require('axios');
+require('dotenv').config();
 
 // Initialize express app
 const app = express();
+
+// Visitor stats
+let visitorCount = 0;
+let countryStats = {};
+const SECRET_KEY = process.env.VISITOR_COUNTER_KEY || 'your-secret-key';
+const IPINFO_TOKEN = process.env.IPINFO_TOKEN;
 
 // Configure CORS for production - more restrictive
 const corsOptions = {
@@ -26,6 +34,36 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
+// Middleware to track visitors and their countries
+app.use(async (req, res, next) => {
+  if (req.path !== '/api/status') {
+    visitorCount++;
+    try {
+      // Get client IP
+      let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      if (clientIp && clientIp.includes(',')) {
+        clientIp = clientIp.split(',')[0].trim();
+      }
+      // Remove IPv6 prefix if present
+      if (clientIp && clientIp.startsWith('::ffff:')) {
+        clientIp = clientIp.replace('::ffff:', '');
+      }
+      // Only query if we have a token
+      if (IPINFO_TOKEN && clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') {
+        const url = `https://ipinfo.io/${clientIp}/json?token=${IPINFO_TOKEN}`;
+        const response = await axios.get(url, { timeout: 2000 });
+        if (response.data && response.data.country) {
+          const country = response.data.country;
+          countryStats[country] = (countryStats[country] || 0) + 1;
+        }
+      }
+    } catch (error) {
+      // Ignore errors (do not block request)
+    }
+  }
   next();
 });
 
@@ -551,26 +589,53 @@ wss.on('connection', (ws, req) => {
       }
     }, 1000);
   });
+// Continue with the rest of your server logic here (do not redeclare visitorCount, countryStats, or env variables)
+
+  const ip = req.socket.remoteAddress;
+  visitorCount++;
+
+  axios.get(`https://ipinfo.io/${ip}?token=${IPINFO_TOKEN}`)
+    .then(response => {
+      const country = response.data.country;
+      if (country) {
+        countryStats[country] = (countryStats[country] || 0) + 1;
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching country data:', error);
+    });
+
+  // ...
 });
 
-// API routes
-app.get('/api/status', (req, res) => {
-  res.json({
-    status: 'online',
-    waitingUsers: waitingUsers.length,
-    activeRooms: activeRooms.size
-  });
+// Secret route for visitor counter with country stats
+app.get('/api/secret-stats', (req, res) => {
+  const providedKey = req.query.key;
+  if (providedKey === SECRET_KEY) {
+    res.json({
+      totalVisitors: visitorCount,
+      countryStats: countryStats,
+      lastUpdated: new Date().toISOString()
+    });
+  } else {
+    res.status(403).json({ error: 'Unauthorized' });
+  }
 });
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve frontend files at /chat route
+// ...
 app.use('/chat', express.static(path.join(__dirname, '../frontend')));
 
 // Specific route for the chat application
 app.get('/chat', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+// Route for secret stats page
+app.get('/secretstats', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/stats.html'));
 });
 
 // Fallback route

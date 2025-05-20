@@ -11,7 +11,15 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "keywords": ["chat", "websocket", "anonymous", "ephemeral"],
+  "keywords": [
+    "chat",
+    "websocket",
+    "anonymous",
+    "ephemeral"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "recharts": "^2.15.3"
+  }
 }
