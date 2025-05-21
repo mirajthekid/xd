@@ -1,8 +1,23 @@
-// country-flags.js - Fresh Implementation
+// country-flags.js - Optimized Implementation
 console.log('Country flags script loaded');
 
 // Will store the detected country code
-window.userCountryCode = null;
+window.userCountryCode = 'US'; // Default fallback
+
+// Start country detection in the background
+fetch('https://ipapi.co/json/')
+    .then(response => response.json())
+    .then(data => {
+        if (data?.country_code) {
+            window.userCountryCode = data.country_code;
+            console.log('Detected country:', window.userCountryCode);
+            // Update any existing messages with the new flag
+            processChatMessages();
+        }
+    })
+    .catch(error => {
+        console.error('Error detecting country:', error);
+    });
 
 /**
  * Converts a country code to a flag emoji
@@ -62,22 +77,8 @@ function processChatMessages() {
 /**
  * Initializes the country flag system
  */
-async function initCountryFlags() {
+function initCountryFlags() {
     console.log('Initializing country flags...');
-    
-    try {
-        // Detect user's country
-        const response = await fetch('https://ipapi.co/json/');
-        if (response.ok) {
-            const data = await response.json();
-            if (data?.country_code) {
-                window.userCountryCode = data.country_code;
-                console.log('Detected country:', window.userCountryCode);
-            }
-        }
-    } catch (error) {
-        console.error('Error detecting country:', error);
-    }
     
     // Initial processing of messages
     processChatMessages();
@@ -94,9 +95,6 @@ async function initCountryFlags() {
             subtree: true
         });
     }
-    
-    // Add periodic check as a fallback
-    setInterval(processChatMessages, 1000);
 }
 
 // Start when the DOM is fully loaded
