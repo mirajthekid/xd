@@ -110,42 +110,43 @@ function addFlagToMessage() {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         console.log(`Adding flag to message from ${username}:`, flag);
-            
-            // Create a temporary div to safely manipulate the HTML
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = message.innerHTML;
-            
-            // Find and update all text nodes that contain the username
-            const walker = document.createTreeWalker(
-                tempDiv,
-                NodeFilter.SHOW_TEXT,
-                null,
-                false
-            );
-            
-            let node;
-            const nodesToUpdate = [];
-            
-            while (node = walker.nextNode()) {
-                if (node.nodeValue.includes(username)) {
-                    nodesToUpdate.push(node);
-                }
+        
+        // Create a temporary div to safely manipulate the HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = message.innerHTML;
+        
+        // Find and update all text nodes that contain the username
+        const walker = document.createTreeWalker(
+            tempDiv,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+        
+        let node;
+        const nodesToUpdate = [];
+        
+        while ((node = walker.nextNode())) {
+            if (node.nodeValue && node.nodeValue.includes(username)) {
+                nodesToUpdate.push(node);
             }
-            
-            nodesToUpdate.forEach(node => {
-                const span = document.createElement('span');
-                span.innerHTML = node.nodeValue.replace(
-                    new RegExp(`(${username})`, 'g'),
-                    `$1 ${flag}`
-                );
-                node.parentNode.replaceChild(span, node);
-            });
-            
-            // Update the message with the new HTML
-            message.innerHTML = tempDiv.innerHTML;
-            message.dataset.flagAdded = 'true';
-            console.log(`Successfully added flag for ${username}`);
         }
+        
+        nodesToUpdate.forEach(node => {
+            const span = document.createElement('span');
+            span.innerHTML = node.nodeValue.replace(
+                new RegExp(`(${username})`, 'g'),
+                `$1 ${flag}`
+            );
+            if (node.parentNode) {
+                node.parentNode.replaceChild(span, node);
+            }
+        });
+        
+        // Update the message with the new HTML
+        message.innerHTML = tempDiv.innerHTML;
+        message.dataset.flagAdded = 'true';
+        console.log(`Successfully added flag for ${username}`);
     });
 }
 
