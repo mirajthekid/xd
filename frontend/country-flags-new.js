@@ -1,18 +1,23 @@
 // country-flags.js - Direct Implementation
 console.log('Country flags script loaded - Direct Implementation');
 
-// Set default country code
-window.userCountryCode = 'US';
+// Set default to Earth emoji
+window.userCountryCode = null;
 
 // Function to get flag emoji from country code
 function getFlagEmoji(countryCode) {
-    if (!countryCode) return '🇺🇸';
-    const codePoints = countryCode
-        .toUpperCase()
-        .split('')
-        .map(char => 127397 + char.charCodeAt())
-        .map(code => String.fromCodePoint(code));
-    return codePoints.join('');
+    if (!countryCode) return '🌍'; // Earth emoji as fallback
+    try {
+        const codePoints = countryCode
+            .toUpperCase()
+            .split('')
+            .map(char => 127397 + char.charCodeAt())
+            .map(code => String.fromCodePoint(code));
+        return codePoints.join('');
+    } catch (e) {
+        console.error('Error generating flag emoji:', e);
+        return '🌍'; // Earth emoji as fallback
+    }
 }
 
 // Function to add flag to username
@@ -55,14 +60,29 @@ function addFlagToMessage() {
 (async function() {
     try {
         console.log('Detecting country...');
-        const response = await fetch('https://ipapi.co/json/');
+        // Try ipinfo.io first
+        const response = await fetch('https://ipinfo.io/json?token=2c6c2a2d4b9a4d');
         if (response.ok) {
             const data = await response.json();
-            window.userCountryCode = (data.country_code || 'US').toUpperCase();
-            console.log('Country code set to:', window.userCountryCode);
+            if (data && data.country) {
+                window.userCountryCode = data.country.toUpperCase();
+                console.log('Country code set to (ipinfo):', window.userCountryCode);
+                return;
+            }
+        }
+        
+        // Fallback to ipapi.co
+        const fallbackResponse = await fetch('https://ipapi.co/json/');
+        if (fallbackResponse.ok) {
+            const data = await fallbackResponse.json();
+            if (data && data.country_code) {
+                window.userCountryCode = data.country_code.toUpperCase();
+                console.log('Country code set to (ipapi):', window.userCountryCode);
+            }
         }
     } catch (error) {
         console.error('Error detecting country:', error);
+        // Keep the Earth emoji as fallback
     }
     
     // Initial check
