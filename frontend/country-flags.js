@@ -33,7 +33,7 @@ function getFlagImage(countryCode) {
     return `<img src="https://flagcdn.com/24x18/${flagCode}.png" 
             alt="${countryCode}" 
             title="${countryCode}" 
-            style="width: 24px; height: 18px; margin: 0 2px; vertical-align: middle; display: inline-block;">`;
+            style="width: 24px; height: 18px; margin-left: 5px; margin-right: 3px; vertical-align: middle; display: inline; white-space: nowrap;">`;
 }
 
 // Function to add a flag next to a username
