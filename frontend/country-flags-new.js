@@ -119,58 +119,78 @@ function addFlagToMessage() {
     });
 }
 
-// Detect country using ipapi.co
-(async function() {
+// Function to initialize the flag system
+async function initFlagSystem() {
     try {
         console.log('Starting country detection with ipapi.co...');
         
-        const response = await fetch('https://ipapi.co/json/');
-        if (response.ok) {
-            const data = await response.json();
-            console.log('ipapi.co response:', data);
-            
-            if (data && data.country_code) {
-                window.userCountryCode = data.country_code.toUpperCase();
-                console.log('Country code set (ipapi.co):', window.userCountryCode);
-                console.log('Valid country codes:', Array.from(validCountryCodes));
-                return;
+        // Wait for a short delay to ensure the page is fully loaded
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Try to detect country
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            if (response.ok) {
+                const data = await response.json();
+                console.log('ipapi.co response:', data);
+                
+                if (data && data.country_code) {
+                    window.userCountryCode = data.country_code.toUpperCase();
+                    console.log('Country code set (ipapi.co):', window.userCountryCode);
+                }
             }
+        } catch (error) {
+            console.error('Error in country detection:', error);
+            window.userCountryCode = null;
         }
         
-        console.log('Using question mark emoji as fallback');
-        window.userCountryCode = null;
-    } catch (error) {
-        console.error('Error in country detection:', error);
-        window.userCountryCode = null;
-    }
-    
-    // Debug: Log DOM structure
-    console.log('DOM Content:', document.documentElement.outerHTML);
-    
-    // Initial check
-    console.log('Running initial check...');
-    addFlagToMessage();
-    
-    // Watch for new messages
-    const chatContainer = document.getElementById('chat-messages') || 
-                         document.querySelector('.chat-messages') ||
-                         document.body; // Fallback to body if no container found
-    
-    console.log('Chat container found:', chatContainer);
-    
-    if (chatContainer) {
-        const observer = new MutationObserver((mutations) => {
-            console.log('DOM mutation detected:', mutations);
+        // Add a small delay to ensure chat messages are loaded
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Initial check
+        console.log('Running initial check...');
+        addFlagToMessage();
+        
+        // Watch for new messages
+        const chatContainer = document.getElementById('chat-messages') || 
+                             document.querySelector('.chat-messages') ||
+                             document.body;
+        
+        console.log('Chat container found:', chatContainer);
+        
+        if (chatContainer) {
+            // Immediate check
             addFlagToMessage();
-        });
+            
+            // Set up observer for dynamic content
+            const observer = new MutationObserver((mutations) => {
+                console.log('DOM mutation detected, checking for new messages...');
+                // Add a small delay to allow new messages to be fully rendered
+                setTimeout(addFlagToMessage, 100);
+            });
+            
+            observer.observe(chatContainer, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+            
+            console.log('MutationObserver set up on container');
+            
+            // Additional check after a delay to catch any missed messages
+            setTimeout(addFlagToMessage, 2000);
+        } else {
+            console.error('No chat container found in the DOM');
+        }
         
-        observer.observe(chatContainer, {
-            childList: true,
-            subtree: true
-        });
-        
-        console.log('MutationObserver set up on container');
-    } else {
-        console.error('No chat container found in the DOM');
+    } catch (error) {
+        console.error('Error initializing flag system:', error);
     }
-})();
+}
+
+// Start the flag system when the DOM is fully loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFlagSystem);
+} else {
+    initFlagSystem();
+}
