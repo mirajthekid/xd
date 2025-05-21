@@ -503,30 +503,11 @@ function handleMatch(data) {
     roomId = data.roomId;
     partnerUsername = data.partnerUsername;
     
-    // Set the chat partner's country code if provided
-    if (data.partnerCountryCode) {
-        window.chatPartnerCountryCode = data.partnerCountryCode.toUpperCase();
-        console.log('Chat partner country code set to:', window.chatPartnerCountryCode);
-        
-        // Process all messages to update flags
-        if (window.processChatMessages) {
-            // Small delay to ensure DOM is updated
-            setTimeout(window.processChatMessages, 100);
-        }
-    }
-    
     // Show chat screen
     showScreen(chatScreen);
     
     // Display system message about the match
     displayMessage(`Connected with ${partnerUsername}`, null, 'system');
-    
-    // Process messages after a short delay to ensure DOM is ready
-    setTimeout(() => {
-        if (window.processChatMessages) {
-            window.processChatMessages();
-        }
-    }, 300);
     
     // Auto-focus message input
     messageInput.focus();
@@ -1216,13 +1197,7 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
         senderSpan.className = 'message-sender';
         senderSpan.textContent = isOutgoing ? `${username}:` : `${sender}:`;
         
-        // Add flag emoji based on message type
-        const flag = isOutgoing 
-            ? (countryFlags[window.userCountryCode] || '🌍')
-            : (countryFlags[window.chatPartnerCountryCode] || '🌍');
-            
-        // Add flag to sender name
-        senderSpan.textContent += ` ${flag}`;
+        // Sender name without flag
         
         messageWrapper.appendChild(senderSpan);
         
