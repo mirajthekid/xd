@@ -1,15 +1,13 @@
 // country-flags.js - Direct Implementation
-console.log('Country flags script loaded - Canadian Flag Test');
+console.log('Country flags script loaded');
 
-// Force Canadian flag for testing
-window.userCountryCode = 'CA';
-console.log('Forcing Canadian flag (CA) for testing');
-
-// Debug: List of valid country codes for reference
+// List of valid country codes
 const validCountryCodes = new Set([
-    'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'IT', 'ES', 'JP', 'CN', 'RU', 'BR', 'IN', 'TR', 'SA', 'AE', 'EG', 'ZA',
-    'CA' // Make sure CA is included
+    'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'IT', 'ES', 'JP', 'CN', 'RU', 'BR', 'IN', 'TR', 'SA', 'AE', 'EG', 'ZA'
 ]);
+
+// Will be set after country detection
+window.userCountryCode = null;
 
 // Function to get flag emoji from country code
 function getFlagEmoji(countryCode) {
