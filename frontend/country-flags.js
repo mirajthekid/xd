@@ -1,9 +1,19 @@
 console.log('Country flags script loaded - Emoji Only');
 
-// Convert country code to emoji
 function countryCodeToEmoji(cc) {
     if (!cc || cc.length !== 2) return '🌐';
-    return String.fromCodePoint(...cc.toUpperCase().split('').map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+    try {
+        const emoji = String.fromCodePoint(
+            0x1F1E6 + cc.toUpperCase().charCodeAt(0) - 65,
+            0x1F1E6 + cc.toUpperCase().charCodeAt(1) - 65
+        );
+        // Test if emoji renders as a flag or as text
+        if (/^[A-Z]{2}$/.test(emoji)) return cc.toUpperCase(); // fallback to country code
+        return emoji;
+    } catch (e) {
+        console.error('Emoji conversion failed:', e);
+        return cc.toUpperCase();
+    }
 }
 
 let userCountryCode = 'us';
@@ -22,7 +32,6 @@ async function detectCountryAndStart() {
 }
 
 function addFlagToSystemMessage(message, username) {
-    // Only add one flag per message
     if (message.dataset.flagAdded) return;
     const emoji = countryCodeToEmoji(userCountryCode);
     const emojiSpan = document.createElement('span');
@@ -32,18 +41,18 @@ function addFlagToSystemMessage(message, username) {
     emojiSpan.style.marginLeft = '5px';
     emojiSpan.style.fontSize = '1.3em';
     emojiSpan.style.verticalAlign = 'middle';
-
-    // Append the emoji flag to the message
+    emojiSpan.style.display = 'inline !important';
+    emojiSpan.style.background = 'inherit';
+    emojiSpan.style.color = 'inherit';
+    console.log(`Appending emoji flag (${emoji}) to:`, message);
     message.appendChild(emojiSpan);
     message.dataset.flagAdded = 'true';
-    console.log(`Emoji flag (${emoji}) added to message:`, message);
 }
 
 function checkForNewMessages() {
     const messages = document.querySelectorAll('.system-message, .message, [class*="chat-message"]');
     messages.forEach(message => {
         const text = message.textContent || '';
-        // FIX: Use correct regex!
         const match = text.match(/You are now chatting with (\w+)/i);
         if (match && match[1] && !message.dataset.flagAdded) {
             const username = match[1];
