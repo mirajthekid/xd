@@ -60,36 +60,61 @@ function getFlagEmoji(countryCode) {
 
 // Function to add flag to username
 function addFlagToMessage() {
-    const messages = document.querySelectorAll('.message.system');
-    console.log(`Found ${messages.length} system messages`);
+    const messages = document.querySelectorAll('.message.system, .message');
+    console.log(`Found ${messages.length} messages to process`);
     
     messages.forEach(message => {
         if (message.dataset.flagAdded) return;
         
         const text = message.textContent || '';
-        const match = text.match(/You are now chatting with (\w+)/i);
+        console.log('Processing message text:', text);
+        
+        // Try different patterns to find the username
+        let match = text.match(/You are now chatting with (\w+)/i) || 
+                   text.match(/Chatting with (\w+)/i) ||
+                   text.match(/(\w+) joined the chat/i);
         
         if (match && match[1]) {
             const username = match[1];
             const flag = getFlagEmoji(window.userCountryCode);
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             
-            console.log(`Processing message for ${username} on ${isMobile ? 'mobile' : 'desktop'}`);
+            console.log(`Found username: ${username}, adding flag: ${flag} (${isMobile ? 'mobile' : 'desktop'})`);
             
-            if (isMobile) {
-                message.innerHTML = message.innerHTML.replace(
-                    new RegExp(`(${username})`),
-                    `$1 ${flag}`
-                );
-            } else {
-                message.innerHTML = message.innerHTML.replace(
-                    new RegExp(`(${username})`),
-                    `$1 ${flag}`
-                );
+            // Create a temporary div to safely manipulate the HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = message.innerHTML;
+            
+            // Find and update all text nodes that contain the username
+            const walker = document.createTreeWalker(
+                tempDiv,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            
+            let node;
+            const nodesToUpdate = [];
+            
+            while (node = walker.nextNode()) {
+                if (node.nodeValue.includes(username)) {
+                    nodesToUpdate.push(node);
+                }
             }
             
+            nodesToUpdate.forEach(node => {
+                const span = document.createElement('span');
+                span.innerHTML = node.nodeValue.replace(
+                    new RegExp(`(${username})`, 'g'),
+                    `$1 ${flag}`
+                );
+                node.parentNode.replaceChild(span, node);
+            });
+            
+            // Update the message with the new HTML
+            message.innerHTML = tempDiv.innerHTML;
             message.dataset.flagAdded = 'true';
-            console.log(`Added flag ${flag} for ${username}`);
+            console.log(`Successfully added flag for ${username}`);
         }
     });
 }
