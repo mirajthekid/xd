@@ -35,11 +35,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             node.classList.contains('system') && 
                             node.textContent.includes('You are now chatting with')) {
                             
-                            // Modify the message to include swipe instruction
-                            // The flag will be added by country-flags.js
+                            // Modify the message to include swipe instruction with flag
                             const originalText = node.textContent;
                             if (!originalText.includes('Swipe left to skip')) {
-                                node.textContent = `${originalText} Swipe left to skip`;
+                                // Get the flag emoji for the current user
+                                const flag = getFlagEmoji(window.userCountryCode || 'XX');
+                                node.textContent = `${originalText} ${flag} Swipe left to skip`;
                             }
                             break;
                         }
