@@ -1,5 +1,8 @@
 // country-flags.js - Simple and reliable flag display
-console.log('Country flags script loaded');
+console.log('Country flags script loaded - Debug Version');
+
+// Debug: Check if script is loaded
+console.log('Script loaded, checking user agent:', navigator.userAgent);
 
 // Global variable to store the country code
 window.userCountryCode = 'US'; // Default fallback
@@ -17,34 +20,57 @@ function getFlagEmoji(countryCode) {
 
 // Function to add a flag next to a username
 function addFlagToUsername(username) {
-    if (!username) return;
+    if (!username) {
+        console.log('No username provided to addFlagToUsername');
+        return;
+    }
     
     console.log('Adding flag for username:', username);
     
     // Find the system message containing the username
     const messages = document.querySelectorAll('.message.system');
-    messages.forEach(message => {
-        if (message.textContent.includes(`You are now chatting with ${username}`) && !message.dataset.flagAdded) {
+    console.log(`Found ${messages.length} system messages to check`);
+    
+    messages.forEach((message, index) => {
+        const messageText = message.textContent || '';
+        console.log(`Checking message ${index + 1}:`, messageText.substring(0, 100) + '...');
+        
+        if (messageText.includes(`You are now chatting with ${username}`)) {
+            console.log('Found matching message for username:', username);
+            
+            if (message.dataset.flagAdded) {
+                console.log('Flag already added to this message');
+                return;
+            }
+            
             const flagEmoji = getFlagEmoji(window.userCountryCode || 'US');
+            console.log('Generated flag emoji:', flagEmoji);
+            
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            console.log('Is mobile device:', isMobile);
             
             if (isMobile) {
+                console.log('Processing mobile layout');
                 // For mobile, place flag after username and before the period
-                message.innerHTML = message.innerHTML
-                    .replace(
-                        new RegExp(`(${username})(\.?)(\\s*Swipe left to skip)`),
-                        `$1 ${flagEmoji}$2$3`
-                    );
+                const newHtml = message.innerHTML.replace(
+                    new RegExp(`(${username})(\.?)(\\s*Swipe left to skip)`),
+                    `$1 ${flagEmoji}$2$3`
+                );
+                message.innerHTML = newHtml;
+                console.log('Updated message HTML for mobile');
             } else {
+                console.log('Processing desktop layout');
                 // For desktop, place flag after username
-                message.innerHTML = message.innerHTML.replace(
+                const newHtml = message.innerHTML.replace(
                     new RegExp(`(${username})`),
                     `$1 ${flagEmoji}`
                 );
+                message.innerHTML = newHtml;
+                console.log('Updated message HTML for desktop');
             }
             
             message.dataset.flagAdded = 'true';
-            console.log('Added flag for username:', username);
+            console.log('Successfully added flag for username:', username);
         }
     });
 }
