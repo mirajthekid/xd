@@ -1,19 +1,55 @@
-// Simple country flag emoji for typeshi.fun
+// Country flag emoji for typeshi.fun
 (function() {
     console.log('Country flags feature loaded');
     
-    // Simple mapping of country codes to flag emojis
+    // Mapping of country codes to flag emojis
     const flagEmojis = {
         'us': '🇺🇸', 'gb': '🇬🇧', 'ca': '🇨🇦', 'au': '🇦🇺', 'de': '🇩🇪',
         'fr': '🇫🇷', 'it': '🇮🇹', 'es': '🇪🇸', 'jp': '🇯🇵', 'kr': '🇰🇷',
         'cn': '🇨🇳', 'in': '🇮🇳', 'br': '🇧🇷', 'ru': '🇷🇺', 'tr': '🇹🇷',
-        // Add more country codes as needed
+        'sa': '🇸🇦', 'ae': '🇦🇪', 'eg': '🇪🇬', 'za': '🇿🇦', 'ng': '🇳🇬',
+        'mx': '🇲🇽', 'ar': '🇦🇷', 'cl': '🇨🇱', 'co': '🇨🇴', 'pe': '🇵🇪',
+        've': '🇻🇪', 'nz': '🇳🇿', 'sg': '🇸🇬', 'my': '🇲🇾', 'th': '🇹🇭',
+        'id': '🇮🇩', 'ph': '🇵🇭', 'vn': '🇻🇳', 'nl': '🇳🇱', 'be': '🇧🇪',
+        'se': '🇸🇪', 'no': '🇳🇴', 'dk': '🇩🇰', 'fi': '🇫🇮', 'pl': '🇵🇱',
+        'pt': '🇵🇹', 'gr': '🇬🇷', 'ch': '🇨🇭', 'at': '🇦🇹', 'ie': '🇮🇪',
+        'il': '🇮🇱', 'eg': '🇪🇬', 'za': '🇿🇦', 'ke': '🇰🇪', 'ma': '🇲🇦'
     };
+
+    // Function to get user's country code
+    function getUserCountry() {
+        try {
+            // Try to get from browser's language settings
+            const language = navigator.language || navigator.userLanguage;
+            if (language) {
+                // Extract country code from language (e.g., 'en-US' -> 'US')
+                const parts = language.split('-');
+                if (parts.length > 1) {
+                    return parts[1].toLowerCase();
+                }
+            }
+            
+            // Fallback to timezone detection
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (timezone) {
+                // Extract country code from timezone (e.g., 'America/New_York' -> 'US')
+                const countryMatch = timezone.split('/')[0];
+                if (countryMatch) {
+                    return countryMatch.toLowerCase();
+                }
+            }
+        } catch (e) {
+            console.error('Error detecting country:', e);
+        }
+        
+        return 'us'; // Default to US if detection fails
+    }
 
     // Function to get flag emoji from country code
     function getFlagEmoji(countryCode) {
         if (!countryCode) return '🌐';
-        return flagEmojis[countryCode.toLowerCase()] || '🌐';
+        const code = countryCode.toLowerCase();
+        return flagEmojis[code] || '🌐';
     }
 
     // Wait for DOM to be fully loaded
@@ -62,11 +98,11 @@
                 const username = match[1];
                 console.log('Found username:', username);
                 
-                // Get country code (default to 'us' for now)
-                const countryCode = 'us'; // In a real app, get this from the server
+                // Get user's country code
+                const countryCode = getUserCountry();
                 const flag = getFlagEmoji(countryCode);
                 
-                console.log(`Adding flag ${flag} for country ${countryCode}`);
+                console.log(`Detected country: ${countryCode.toUpperCase()}, adding flag: ${flag}`);
                 
                 // Create flag element
                 const flagSpan = document.createElement('span');
