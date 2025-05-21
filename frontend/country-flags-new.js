@@ -14,10 +14,16 @@ const validCountryCodes = new Set([
 // Function to get flag emoji from country code
 function getFlagEmoji(countryCode) {
     console.log('getFlagEmoji called with:', countryCode);
+    console.log('Valid country codes:', Array.from(validCountryCodes).join(', '));
     
-    if (!countryCode || !validCountryCodes.has(countryCode)) {
-        console.log('Using question mark emoji as fallback for code:', countryCode);
-        return '❔'; // Question mark emoji as fallback
+    if (!countryCode) {
+        console.log('No country code provided, using fallback');
+        return '❔';
+    }
+    
+    if (!validCountryCodes.has(countryCode)) {
+        console.log('Country code not in valid list, using fallback:', countryCode);
+        return '❔';
     }
     
     try {
@@ -75,6 +81,8 @@ function addFlagToMessage() {
 // Detect country using ipify.org for IP and ip-api.com for geolocation
 (async function() {
     try {
+        console.log('Starting country detection...');
+        console.log('Current userCountryCode:', window.userCountryCode);
         console.log('Starting IP detection with ipify.org...');
         
         // First get the IP address using ipify.org
