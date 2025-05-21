@@ -1,5 +1,23 @@
-// Production-ready country flags feature for Ephemeral Chat
+// Country flags feature for typeshi.fun
 (function() {
+    // Function to convert country code to flag emoji
+    function getFlagEmoji(countryCode) {
+        if (!countryCode) return '🌐';
+        
+        // Convert to uppercase and ensure it's a valid country code
+        const code = countryCode.toUpperCase();
+        if (code.length !== 2) return '🌐';
+        
+        // Calculate the regional indicator symbols
+        const A = 127462; // Unicode for 'A' in regional indicator
+        const flag = code
+            .toUpperCase()
+            .split('')
+            .map(char => String.fromCodePoint(char.charCodeAt(0) - 65 + A))
+            .join('');
+            
+        return flag || '🌐'; // Return globe if no flag can be generated
+    }
     console.log('Country flags feature loaded');
     
     // Wait for DOM to be fully loaded
@@ -15,13 +33,17 @@
         // Add CSS for flag display
         const styleElement = document.createElement('style');
         styleElement.textContent = `
-            .country-flag {
+            .country-flag-emoji {
                 display: inline-block;
                 margin-left: 5px;
                 vertical-align: middle;
-                width: 16px;
-                height: 11px;
-                border-radius: 2px;
+                font-size: 14px;
+                line-height: 1;
+            }
+            .message.system {
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
         `;
         document.head.appendChild(styleElement);
@@ -67,18 +89,29 @@
                 countryCode = 'us'; // Default to US
             }
             
-            // Create flag element
-            const flagElement = document.createElement('img');
-            flagElement.className = 'country-flag';
-            flagElement.src = `https://flagcdn.com/${countryCode.toLowerCase()}.svg`;
-            flagElement.alt = countryCode.toUpperCase();
+            // Create flag element with better styling
+            const flagElement = document.createElement('span');
+            flagElement.className = 'country-flag-emoji';
+            flagElement.textContent = getFlagEmoji(countryCode);
             flagElement.title = countryCode.toUpperCase();
-            flagElement.onerror = function() {
-                // Fallback if flag doesn't load
-                this.src = 'https://flagcdn.com/us.svg';
-                this.alt = 'US';
-                this.title = 'US';
-            };
+            
+            // Add styles dynamically
+            const style = document.createElement('style');
+            style.textContent = `
+                .country-flag-emoji {
+                    display: inline-block;
+                    margin-left: 5px;
+                    vertical-align: middle;
+                    font-size: 14px;
+                    line-height: 1;
+                }
+                .message.system {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+            `;
+            document.head.appendChild(style);
             
             // Create wrapper for username and flag
             const wrapper = document.createElement('span');
