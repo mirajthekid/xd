@@ -503,6 +503,11 @@ function handleMatch(data) {
     roomId = data.roomId;
     partnerUsername = data.partnerUsername;
     
+    // Set the chat partner's country code if provided
+    if (data.partnerCountryCode && window.updateChatPartnerCountry) {
+        window.updateChatPartnerCountry(data.partnerCountryCode);
+    }
+    
     // Show chat screen
     showScreen(chatScreen);
     

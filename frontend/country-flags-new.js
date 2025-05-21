@@ -5,7 +5,7 @@ console.log('Country flags script loaded');
 window.userCountryCode = 'US'; // Will be updated by IP detection
 
 // Store chat partner's country code
-window.chatPartnerCountryCode = '';
+window.chatPartnerCountryCode = 'US'; // Default value
 
 // Map of country codes to flag emojis
 const countryFlags = {
