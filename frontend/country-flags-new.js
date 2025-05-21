@@ -60,8 +60,12 @@ function getFlagEmoji(countryCode) {
 
 // Function to add flag to username
 function addFlagToMessage() {
-    const messages = document.querySelectorAll('.message.system, .message');
+    const messages = document.querySelectorAll('.message:not(.system), .message.system');
     console.log(`Found ${messages.length} messages to process`);
+    
+    // Get the current user's username (the one that shouldn't have a flag)
+    const currentUserElement = document.querySelector('.username');
+    const currentUsername = currentUserElement ? currentUserElement.textContent.trim() : null;
     
     messages.forEach(message => {
         if (message.dataset.flagAdded) return;
@@ -69,17 +73,43 @@ function addFlagToMessage() {
         const text = message.textContent || '';
         console.log('Processing message text:', text);
         
-        // Try different patterns to find the username
-        let match = text.match(/You are now chatting with (\w+)/i) || 
-                   text.match(/Chatting with (\w+)/i) ||
-                   text.match(/(\w+) joined the chat/i);
-        
-        if (match && match[1]) {
-            const username = match[1];
-            const flag = getFlagEmoji(window.userCountryCode);
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Only process messages from other users (not system messages about the current user)
+        if (message.classList.contains('system')) {
+            const match = text.match(/You are now chatting with (\w+)/i) || 
+                        text.match(/Chatting with (\w+)/i) ||
+                        text.match(/(\w+) joined the chat/i);
             
-            console.log(`Found username: ${username}, adding flag: ${flag} (${isMobile ? 'mobile' : 'desktop'})`);
+            if (match && match[1]) {
+                const otherUsername = match[1];
+                // Don't add flag to messages about the current user
+                if (currentUsername && otherUsername === currentUsername) {
+                    message.dataset.flagAdded = 'true';
+                    return;
+                }
+                
+                // For system messages, we'll add the flag to the next message from that user
+                return;
+            }
+        }
+        
+        // For regular messages, find the username element
+        const usernameElement = message.querySelector('.username');
+        if (!usernameElement) return;
+        
+        const username = usernameElement.textContent.trim();
+        
+        // Don't add flag to current user's messages
+        if (currentUsername && username === currentUsername) {
+            message.dataset.flagAdded = 'true';
+            return;
+        }
+        
+        // Get the country code for this user (in a real app, this would come from the server)
+        // For now, we'll use the detected country code as a fallback
+        const flag = getFlagEmoji(window.userCountryCode);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        console.log(`Adding flag to message from ${username}:`, flag);
             
             // Create a temporary div to safely manipulate the HTML
             const tempDiv = document.createElement('div');
