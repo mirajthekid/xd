@@ -26,6 +26,12 @@ document.addEventListener('DOMContentLoaded', function() {
             skipBtn.textContent = 'SKIP';
         }
         
+        // Remove the static swipe instruction div since we'll add it dynamically
+        const staticSwipeInstruction = document.querySelector('.swipe-instruction');
+        if (staticSwipeInstruction) {
+            staticSwipeInstruction.remove();
+        }
+        
         // Modify the 'You are now chatting with' message on mobile
         const chatMessages = document.getElementById('chat-messages');
         
