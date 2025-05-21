@@ -509,6 +509,16 @@ function handleMatch(data) {
     // Display system message about the match
     displayMessage(`Connected with ${partnerUsername}`, null, 'system');
     
+    // Get partner's country from IP if available
+    if (data.partnerIp && window.updatePartnerCountry) {
+        window.updatePartnerCountry(data.partnerIp).then(() => {
+            // Process existing messages to add flags
+            if (window.processMessages) {
+                window.processMessages();
+            }
+        });
+    }
+    
     // Auto-focus message input
     messageInput.focus();
 }
