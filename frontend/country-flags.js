@@ -1,24 +1,24 @@
 // country-flags.js
-console.log('Country flags script loaded');
+console.log('Country flags script loaded - IMAGE VERSION');
 
-// Simple mapping of country codes to flag emojis
-const flagEmojis = {
-    'us': '🇺🇸', 'gb': '🇬🇧', 'ca': '🇨🇦', 'au': '🇦🇺', 'de': '🇩🇪',
-    'fr': '🇫🇷', 'it': '🇮🇹', 'es': '🇪🇸', 'jp': '🇯🇵', 'kr': '🇰🇷',
-    'cn': '🇨🇳', 'in': '🇮🇳', 'br': '🇧🇷', 'ru': '🇷🇺', 'tr': '🇹🇷',
-    'sa': '🇸🇦', 'ae': '🇦🇪', 'eg': '🇪🇬', 'za': '🇿🇦', 'ng': '🇳🇬',
-    'mx': '🇲🇽', 'ar': '🇦🇷', 'cl': '🇨🇱', 'co': '🇨🇴', 'pe': '🇵🇪',
-    've': '🇻🇪', 'nz': '🇳🇿', 'sg': '🇸🇬', 'my': '🇲🇾', 'th': '🇹🇭',
-    'id': '🇮🇩', 'ph': '🇵🇭', 'vn': '🇻🇳', 'nl': '🇳🇱', 'be': '🇧🇪',
-    'se': '🇸🇪', 'no': '🇳🇴', 'dk': '🇩🇰', 'fi': '🇫🇮', 'pl': '🇵🇱',
-    'pt': '🇵🇹', 'gr': '🇬🇷', 'ch': '🇨🇭', 'at': '🇦🇹', 'ie': '🇮🇪',
-    'il': '🇮🇱', 'eg': '🇪🇬', 'za': '🇿🇦', 'ke': '🇰🇪', 'ma': '🇲🇦'
-};
+// Mapping of country codes to flag image URLs (using flagcdn.com)
+function getFlagImageUrl(countryCode) {
+    const code = (countryCode || 'un').toLowerCase();
+    return `https://flagcdn.com/24x18/${code}.png`;
+}
 
-// Function to get flag emoji from country code
-function getFlagEmoji(countryCode) {
-    if (!countryCode) return '🌐';
-    return flagEmojis[countryCode.toLowerCase()] || '🌐';
+// Function to create a flag element
+function createFlagElement(countryCode) {
+    const flagImg = document.createElement('img');
+    flagImg.src = getFlagImageUrl(countryCode);
+    flagImg.alt = countryCode ? countryCode.toUpperCase() : 'INT';
+    flagImg.title = countryCode ? `From ${countryCode.toUpperCase()}` : 'International';
+    flagImg.className = 'country-flag';
+    flagImg.style.width = '24px';
+    flagImg.style.height = '18px';
+    flagImg.style.marginLeft = '5px';
+    flagImg.style.verticalAlign = 'middle';
+    return flagImg;
 }
 
 // Function to detect user's country (simplified version)
@@ -63,25 +63,26 @@ async function addFlagsToMessages() {
         if (match && match[1] && !message.dataset.flagAdded) {
             const username = match[1];
             const countryCode = await detectCountry();
-            const flag = getFlagEmoji(countryCode);
             
-            console.log(`Adding flag ${flag} for username: ${username}, country: ${countryCode}`);
+            console.log(`Adding flag for username: ${username}, country: ${countryCode}`);
             
             // Create flag element
-            const flagSpan = document.createElement('span');
-            flagSpan.className = 'country-flag';
-            flagSpan.textContent = ` ${flag}`;
-            flagSpan.title = `From ${countryCode.toUpperCase()}`;
+            const flagImg = createFlagElement(countryCode);
             
             // Add flag after the username
             const newContent = message.innerHTML.replace(
                 new RegExp(`(${username})(?![^<]*>|[^<>]*<\/span>)`, 'i'), 
-                `$1${flagSpan.outerHTML}`
+                `$1`
             );
             
             // Only update if we actually made a replacement
             if (newContent !== message.innerHTML) {
                 message.innerHTML = newContent;
+                // Insert the flag after the username
+                const usernameElement = message.querySelector(`:contains('${username}')`);
+                if (usernameElement) {
+                    usernameElement.parentNode.insertBefore(flagImg, usernameElement.nextSibling);
+                }
                 message.dataset.flagAdded = 'true';
             }
         }
