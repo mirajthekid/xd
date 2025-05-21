@@ -41,56 +41,39 @@ function getFlagEmoji(countryCode) {
 // Function to add a flag next to a username
 function addFlagToUsername(username) {
     console.log('Attempting to add flag for username:', username);
+    const flagEmoji = getFlagEmoji(window.userCountryCode || 'US');
     
-    // Create flag emoji span
-    const flagSpan = document.createElement('span');
-    flagSpan.className = 'country-flag-emoji';
-    flagSpan.title = `From ${userCountryCode}`;
-    flagSpan.textContent = getFlagEmoji(userCountryCode);
-    flagSpan.style.marginLeft = '5px';
-    flagSpan.style.verticalAlign = 'middle';
-    
-    // Try to find the username in the chat messages
-    const chatMessages = document.getElementById('chat-messages') || document.body;
-    const textNodes = [];
-    
-    // Find all text nodes that contain the username
-    const walker = document.createTreeWalker(
-        chatMessages,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-    );
-    
-    let node;
-    while (node = walker.nextNode()) {
-        if (node.nodeValue.includes(`You are now chatting with ${username}`)) {
-            textNodes.push(node);
-        }
-    }
-    
-    // Add flag next to each found username
-    textNodes.forEach(textNode => {
-        const parent = textNode.parentNode;
-        if (parent && !parent.dataset.flagAdded) {
-            // Insert the flag after the username
-            const range = document.createRange();
-            range.setStartAfter(textNode);
-            range.insertNode(flagSpan.cloneNode(true));
-            parent.dataset.flagAdded = 'true';
+    const messages = document.querySelectorAll('.message');
+    messages.forEach(message => {
+        if (message.classList.contains('system') && 
+            message.textContent.includes(username) && 
+            !message.dataset.flagAdded) {
+            
+            const isMobileMessage = /Swipe left to skip$/.test(message.textContent);
+            
+            if (isMobileMessage) {
+                message.innerHTML = message.innerHTML.replace(
+                    new RegExp(`(${username})`), 
+                    `${flagEmoji} $1`
+                );
+            } else {
+                message.innerHTML = message.innerHTML.replace(
+                    new RegExp(`(${username})([^<]*)`), 
+                    `$1${flagEmoji}$2`
+                );
+            }
+            
+            message.dataset.flagAdded = 'true';
             console.log('Added flag for username:', username);
         }
     });
     
-    if (textNodes.length === 0) {
-        console.log('Username not found in chat messages');
-    }
+    console.log('Flag processing complete for username:', username);
 }
 
 // Function to check for new messages and add flags
 function checkForNewMessages() {
     const messages = document.querySelectorAll('.system-message, .message, [class*="chat-message"]');
-    
     messages.forEach(message => {
         const text = message.textContent || '';
         const match = text.match(/You are now chatting with (\w+)/i);
