@@ -33,7 +33,7 @@ function getFlagImage(countryCode) {
     return `<img src="https://flagcdn.com/24x18/${flagCode}.png" 
             alt="${countryCode}" 
             title="${countryCode}" 
-            style="width: 24px; height: 18px; margin-left: 5px; margin-right: 3px; vertical-align: middle; display: inline; white-space: nowrap;">`;
+            style="width: 20px; height: 15px; margin: 0 3px; vertical-align: text-bottom; display: inline-block;">`;
 }
 
 // Function to add a flag next to a username
@@ -51,41 +51,38 @@ function addFlagToUsername(username) {
     }
     
     const isMobileMessage = /Swipe left to skip$/.test(message.textContent);
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Create a wrapper div to preserve the message structure
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = message.innerHTML;
+    // Create a container for the username and flag
+    const container = document.createElement('span');
+    container.style.display = 'inline';
+    container.style.whiteSpace = 'nowrap';
     
-    // Find the text node containing the username
-    const walker = document.createTreeWalker(
-        wrapper,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-    );
+    // Create a text node for the username
+    const usernameSpan = document.createElement('span');
+    usernameSpan.textContent = username;
     
-    let node;
-    while (node = walker.nextNode()) {
-        if (node.nodeValue.includes(`You are now chatting with ${username}`)) {
-            // Create a new text node with the flag image
-            const newText = isMobileMessage 
-                ? node.nodeValue.replace(
-                    new RegExp(`(${username})`), 
-                    `${flagImg} $1`
-                  )
-                : node.nodeValue.replace(
-                    new RegExp(`(${username})([^<]*)`), 
-                    `$1${flagImg}$2`
-                  );
-            
-            // Replace the text node with our modified version
-            node.nodeValue = newText;
-            break;
-        }
+    // Add the flag image
+    const flagContainer = document.createElement('span');
+    flagContainer.innerHTML = flagImg;
+    
+    // Add elements to container
+    if (isMobile) {
+        container.appendChild(flagContainer);
+        container.appendChild(document.createTextNode(' ')); // Add space
+        container.appendChild(usernameSpan);
+    } else {
+        container.appendChild(usernameSpan);
+        container.appendChild(flagContainer);
     }
     
-    // Update the message content and mark as processed
-    message.innerHTML = wrapper.innerHTML;
+    // Replace the username in the message with our container
+    message.innerHTML = message.innerHTML.replace(
+        new RegExp(username, 'g'),
+        container.outerHTML
+    );
+    
+    // Mark as processed
     message.dataset.flagAdded = 'true';
     console.log('Added flag for username:', username);
 }
