@@ -60,63 +60,52 @@ function getFlagEmoji(countryCode) {
 
 // Function to add flag to username
 function addFlagToMessage() {
-    const messages = document.querySelectorAll('.message.system, .message');
+    // Get all messages that haven't been processed yet
+    const messages = document.querySelectorAll('.message:not([data-flag-added])');
     console.log(`Found ${messages.length} messages to process`);
     
     messages.forEach(message => {
-        if (message.dataset.flagAdded) return;
+        // Mark as processed immediately to avoid duplicate processing
+        message.dataset.flagAdded = 'true';
         
-        const text = message.textContent || '';
-        console.log('Processing message text:', text);
-        
-        // Try different patterns to find the username
-        let match = text.match(/You are now chatting with (\w+)/i) || 
-                   text.match(/Chatting with (\w+)/i) ||
-                   text.match(/(\w+) joined the chat/i);
-        
-        if (match && match[1]) {
-            const username = match[1];
-            const flag = getFlagEmoji(window.userCountryCode);
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Handle system messages (e.g., "You are now chatting with...")
+        if (message.classList.contains('system')) {
+            const text = message.textContent || '';
+            const match = text.match(/You are now chatting with (\w+)/i) || 
+                       text.match(/Chatting with (\w+)/i) ||
+                       text.match(/(\w+) joined the chat/i);
             
-            console.log(`Found username: ${username}, adding flag: ${flag} (${isMobile ? 'mobile' : 'desktop'})`);
-            
-            // Create a temporary div to safely manipulate the HTML
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = message.innerHTML;
-            
-            // Find and update all text nodes that contain the username
-            const walker = document.createTreeWalker(
-                tempDiv,
-                NodeFilter.SHOW_TEXT,
-                null,
-                false
-            );
-            
-            let node;
-            const nodesToUpdate = [];
-            
-            while (node = walker.nextNode()) {
-                if (node.nodeValue && node.nodeValue.includes(username)) {
-                    nodesToUpdate.push(node);
-                }
-            }
-            
-            nodesToUpdate.forEach(node => {
-                const span = document.createElement('span');
-                span.innerHTML = node.nodeValue.replace(
-                    new RegExp(`(${username})`, 'g'),
+            if (match && match[1]) {
+                const username = match[1];
+                const flag = getFlagEmoji(window.userCountryCode);
+                console.log(`Processing system message for ${username}`);
+                
+                // Update the message content with the flag
+                message.innerHTML = message.innerHTML.replace(
+                    new RegExp(`(${username})(?![^<]*>)`, 'g'),
                     `$1 ${flag}`
                 );
-                if (node.parentNode) {
-                    node.parentNode.replaceChild(span, node);
-                }
-            });
+            }
+            return;
+        }
+        
+        // Handle regular chat messages
+        const senderElement = message.querySelector('.message-sender');
+        if (!senderElement) return;
+        
+        const username = senderElement.textContent.replace(':', '').trim();
+        const isCurrentUser = message.classList.contains('outgoing');
+        
+        // Only add flags to other users' messages
+        if (!isCurrentUser && username) {
+            const flag = getFlagEmoji(window.userCountryCode);
+            console.log(`Adding flag to message from ${username}`);
             
-            // Update the message with the new HTML
-            message.innerHTML = tempDiv.innerHTML;
-            message.dataset.flagAdded = 'true';
-            console.log(`Successfully added flag for ${username}`);
+            // Add flag after the username
+            senderElement.innerHTML = senderElement.innerHTML.replace(
+                new RegExp(`(${username})`, 'g'),
+                `$1 ${flag}`
+            );
         }
     });
 }
