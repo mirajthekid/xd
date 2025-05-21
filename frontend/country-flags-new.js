@@ -32,7 +32,7 @@ function getFlagEmoji(countryCode) {
     
     if (!countryCode) {
         console.log('No country code provided, using fallback');
-        return '❔';
+        return '🌍'; // Earth emoji as fallback
     }
     
     // Convert to uppercase for consistency
@@ -40,7 +40,7 @@ function getFlagEmoji(countryCode) {
     
     if (!validCountryCodes.has(upperCode)) {
         console.log('Country code not in valid list, using fallback:', countryCode);
-        return '❔';
+        return '🌍'; // Earth emoji as fallback
     }
     
     try {
@@ -54,7 +54,7 @@ function getFlagEmoji(countryCode) {
         return flag;
     } catch (e) {
         console.error('Error generating flag emoji:', e);
-        return '❔'; // Question mark emoji as fallback
+        return '🌍'; // Earth emoji as fallback
     }
 }
 
@@ -144,15 +144,33 @@ function addFlagToMessage() {
         window.userCountryCode = null;
     }
     
+    // Debug: Log DOM structure
+    console.log('DOM Content:', document.documentElement.outerHTML);
+    
     // Initial check
+    console.log('Running initial check...');
     addFlagToMessage();
     
     // Watch for new messages
-    const chatContainer = document.getElementById('chat-messages');
+    const chatContainer = document.getElementById('chat-messages') || 
+                         document.querySelector('.chat-messages') ||
+                         document.body; // Fallback to body if no container found
+    
+    console.log('Chat container found:', chatContainer);
+    
     if (chatContainer) {
-        new MutationObserver(addFlagToMessage).observe(chatContainer, {
+        const observer = new MutationObserver((mutations) => {
+            console.log('DOM mutation detected:', mutations);
+            addFlagToMessage();
+        });
+        
+        observer.observe(chatContainer, {
             childList: true,
             subtree: true
         });
+        
+        console.log('MutationObserver set up on container');
+    } else {
+        console.error('No chat container found in the DOM');
     }
 })();
