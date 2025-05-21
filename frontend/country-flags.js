@@ -30,7 +30,6 @@ async function detectCountry() {
 // Function to add a flag next to a username
 function addFlagToUsername(username) {
     console.log('Attempting to add flag for username:', username);
-    
     // Create flag image
     const flagImg = document.createElement('img');
     flagImg.src = `https://flagcdn.com/24x18/${userCountryCode}.png`;
@@ -41,49 +40,46 @@ function addFlagToUsername(username) {
     flagImg.style.height = '18px';
     flagImg.style.marginLeft = '5px';
     flagImg.style.verticalAlign = 'middle';
-    
-    // Try to find the username in the chat messages
-    const chatMessages = document.getElementById('chat-messages') || document.body;
-    const textNodes = [];
-    
-    // Find all text nodes that contain the username
-    const walker = document.createTreeWalker(
-        chatMessages,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-    );
-    
-    let node;
-    while (node = walker.nextNode()) {
-        if (node.nodeValue.includes(`You are now chatting with ${username}`)) {
-            textNodes.push(node);
-        }
-    }
-    
-    // Add flag next to each found username
-    textNodes.forEach(textNode => {
-        const parent = textNode.parentNode;
-        if (parent && !parent.dataset.flagAdded) {
-            // Create a span to wrap the username and flag
-            const wrapper = document.createElement('span');
-            wrapper.style.display = 'inline-flex';
-            wrapper.style.alignItems = 'center';
-            
-            // Replace the text node with our wrapper
-            parent.replaceChild(wrapper, textNode);
-            wrapper.appendChild(document.createTextNode(textNode.nodeValue));
-            wrapper.appendChild(flagImg.cloneNode(true));
-            
-            parent.dataset.flagAdded = 'true';
-            console.log('Added flag for username:', username);
-        }
+
+    // Try to find username as a span or strong or b element (common in chat UIs)
+    let found = false;
+    const possibleSelectors = [
+        `span.username`,
+        `strong`,
+        `b`,
+        `span`,
+        `div`,
+        `p`
+    ];
+    possibleSelectors.forEach(sel => {
+        document.querySelectorAll(sel).forEach(el => {
+            if (el.textContent.trim() === username && !el.dataset.flagAdded) {
+                el.insertAdjacentElement('afterend', flagImg.cloneNode(true));
+                el.dataset.flagAdded = 'true';
+                found = true;
+                console.log('Flag added after element:', el);
+            }
+        });
     });
-    
-    if (textNodes.length === 0) {
-        console.log('Username not found in chat messages');
+
+    // Fallback: try to match username in system messages
+    if (!found) {
+        const systemMessages = document.querySelectorAll('.system-message, .message, [class*="chat-message"]');
+        systemMessages.forEach(msg => {
+            if (msg.textContent.includes(username) && !msg.dataset.flagAdded) {
+                msg.appendChild(flagImg.cloneNode(true));
+                msg.dataset.flagAdded = 'true';
+                found = true;
+                console.log('Flag added in fallback to message:', msg);
+            }
+        });
+    }
+
+    if (!found) {
+        console.warn('Could not find username element to add flag:', username);
     }
 }
+
 
 // Function to check for new messages and add flags
 function checkForNewMessages() {
