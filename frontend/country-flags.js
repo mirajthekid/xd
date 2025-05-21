@@ -27,48 +27,67 @@ async function detectCountry() {
     }
 }
 
-// Function to convert country code to flag emoji
-function getFlagEmoji(countryCode) {
-    // Convert country code to flag emoji
-    const codePoints = countryCode
-        .toUpperCase()
-        .split('')
-        .map(char => 127397 + char.charCodeAt())
-        .map(code => String.fromCodePoint(code));
-    return codePoints.join('');
+// Function to get flag image HTML
+function getFlagImage(countryCode) {
+    const flagCode = countryCode.toLowerCase();
+    return `<img src="https://flagcdn.com/24x18/${flagCode}.png" 
+            alt="${countryCode}" 
+            title="${countryCode}" 
+            style="width: 24px; height: 18px; margin: 0 2px; vertical-align: middle; display: inline-block;">`;
 }
 
 // Function to add a flag next to a username
 function addFlagToUsername(username) {
     console.log('Attempting to add flag for username:', username);
-    const flagEmoji = getFlagEmoji(window.userCountryCode || 'US');
+    const flagImg = getFlagImage(window.userCountryCode || 'US');
     
-    const messages = document.querySelectorAll('.message');
-    messages.forEach(message => {
-        if (message.classList.contains('system') && 
-            message.textContent.includes(username) && 
-            !message.dataset.flagAdded) {
-            
-            const isMobileMessage = /Swipe left to skip$/.test(message.textContent);
-            
-            if (isMobileMessage) {
-                message.innerHTML = message.innerHTML.replace(
+    // Find the specific system message that contains the username and hasn't been processed yet
+    const message = Array.from(document.querySelectorAll('.message.system'))
+        .find(msg => msg.textContent.includes(`You are now chatting with ${username}`) && !msg.dataset.flagAdded);
+    
+    if (!message) {
+        console.log('No unprocessed message found for username:', username);
+        return;
+    }
+    
+    const isMobileMessage = /Swipe left to skip$/.test(message.textContent);
+    
+    // Create a wrapper div to preserve the message structure
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = message.innerHTML;
+    
+    // Find the text node containing the username
+    const walker = document.createTreeWalker(
+        wrapper,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+        if (node.nodeValue.includes(`You are now chatting with ${username}`)) {
+            // Create a new text node with the flag image
+            const newText = isMobileMessage 
+                ? node.nodeValue.replace(
                     new RegExp(`(${username})`), 
-                    `${flagEmoji} $1`
-                );
-            } else {
-                message.innerHTML = message.innerHTML.replace(
+                    `${flagImg} $1`
+                  )
+                : node.nodeValue.replace(
                     new RegExp(`(${username})([^<]*)`), 
-                    `$1${flagEmoji}$2`
-                );
-            }
+                    `$1${flagImg}$2`
+                  );
             
-            message.dataset.flagAdded = 'true';
-            console.log('Added flag for username:', username);
+            // Replace the text node with our modified version
+            node.nodeValue = newText;
+            break;
         }
-    });
+    }
     
-    console.log('Flag processing complete for username:', username);
+    // Update the message content and mark as processed
+    message.innerHTML = wrapper.innerHTML;
+    message.dataset.flagAdded = 'true';
+    console.log('Added flag for username:', username);
 }
 
 // Function to check for new messages and add flags
