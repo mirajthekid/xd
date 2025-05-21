@@ -4,6 +4,17 @@
  * - Adds swipe instruction for mobile users
  */
 
+// Function to get flag emoji from country code
+function getFlagEmoji(countryCode) {
+    // Convert country code to flag emoji
+    const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map(char => 127397 + char.charCodeAt())
+        .map(code => String.fromCodePoint(code));
+    return codePoints.join('');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Check if the device is mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -29,9 +40,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             node.classList.contains('system') && 
                             node.textContent.includes('You are now chatting with')) {
                             
-                            // Modify the message to include swipe instruction
+                            // Modify the message to include flag and swipe instruction
                             const originalText = node.textContent;
-                            node.textContent = originalText + '. Swipe left to skip';
+                            const flagEmoji = getFlagEmoji(window.userCountryCode || 'US');
+                            node.textContent = `${originalText} ${flagEmoji} Swipe left to skip`;
                             break;
                         }
                     }
@@ -48,7 +60,8 @@ document.addEventListener('DOMContentLoaded', function() {
             existingMessages.forEach(msg => {
                 if (msg.textContent.includes('You are now chatting with') && 
                     !msg.textContent.includes('Swipe left to skip')) {
-                    msg.textContent = msg.textContent + '. Swipe left to skip';
+                    const flagEmoji = getFlagEmoji(window.userCountryCode || 'US');
+                    msg.textContent = `${msg.textContent} ${flagEmoji} Swipe left to skip`;
                 }
             });
         }
