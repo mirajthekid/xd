@@ -7,8 +7,7 @@ function countryCodeToEmoji(cc) {
             0x1F1E6 + cc.toUpperCase().charCodeAt(0) - 65,
             0x1F1E6 + cc.toUpperCase().charCodeAt(1) - 65
         );
-        // Test if emoji renders as a flag or as text
-        if (/^[A-Z]{2}$/.test(emoji)) return cc.toUpperCase(); // fallback to country code
+        if (/^[A-Z]{2}$/.test(emoji)) return cc.toUpperCase();
         return emoji;
     } catch (e) {
         console.error('Emoji conversion failed:', e);
@@ -31,22 +30,49 @@ async function detectCountryAndStart() {
     startFlagInsertion();
 }
 
-function addFlagToSystemMessage(message, username) {
+function insertFlagAfterUsername(message, username) {
     if (message.dataset.flagAdded) return;
-    const emoji = countryCodeToEmoji(userCountryCode);
-    const emojiSpan = document.createElement('span');
-    emojiSpan.textContent = emoji;
-    emojiSpan.title = `From ${userCountryCode.toUpperCase()}`;
-    emojiSpan.className = 'country-flag';
-    emojiSpan.style.marginLeft = '5px';
-    emojiSpan.style.fontSize = '1.3em';
-    emojiSpan.style.verticalAlign = 'middle';
-    emojiSpan.style.display = 'inline !important';
-    emojiSpan.style.background = 'inherit';
-    emojiSpan.style.color = 'inherit';
-    console.log(`Appending emoji flag (${emoji}) to:`, message);
-    message.appendChild(emojiSpan);
-    message.dataset.flagAdded = 'true';
+
+    // Find the text node containing the username
+    const walker = document.createTreeWalker(message, NodeFilter.SHOW_TEXT, null, false);
+    let node;
+    let found = false;
+    while ((node = walker.nextNode())) {
+        const idx = node.nodeValue.indexOf(username);
+        if (idx !== -1) {
+            // Split the text node at the end of the username
+            const afterUsernameIdx = idx + username.length;
+            const before = node.nodeValue.slice(0, afterUsernameIdx);
+            const after = node.nodeValue.slice(afterUsernameIdx);
+
+            // Create new nodes
+            const beforeNode = document.createTextNode(before);
+            const afterNode = document.createTextNode(after);
+
+            // Create emoji flag
+            const emoji = countryCodeToEmoji(userCountryCode);
+            const emojiSpan = document.createElement('span');
+            emojiSpan.textContent = emoji;
+            emojiSpan.title = `From ${userCountryCode.toUpperCase()}`;
+            emojiSpan.className = 'country-flag';
+            emojiSpan.style.marginLeft = '5px';
+            emojiSpan.style.fontSize = '1.3em';
+            emojiSpan.style.verticalAlign = 'middle';
+
+            // Replace the original text node
+            node.parentNode.insertBefore(beforeNode, node);
+            node.parentNode.insertBefore(emojiSpan, node);
+            node.parentNode.insertBefore(afterNode, node);
+            node.parentNode.removeChild(node);
+
+            message.dataset.flagAdded = 'true';
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        console.warn('Could not find username in message to insert flag:', message);
+    }
 }
 
 function checkForNewMessages() {
@@ -56,7 +82,7 @@ function checkForNewMessages() {
         const match = text.match(/You are now chatting with (\w+)/i);
         if (match && match[1] && !message.dataset.flagAdded) {
             const username = match[1];
-            addFlagToSystemMessage(message, username);
+            insertFlagAfterUsername(message, username);
         }
     });
 }
