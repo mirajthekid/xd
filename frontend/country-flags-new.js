@@ -16,8 +16,8 @@ function getFlagEmoji(countryCode) {
     console.log('getFlagEmoji called with:', countryCode);
     
     if (!countryCode || !validCountryCodes.has(countryCode)) {
-        console.log('Using Earth emoji as fallback for code:', countryCode);
-        return '🌍';
+        console.log('Using question mark emoji as fallback for code:', countryCode);
+        return '❔'; // Question mark emoji as fallback
     }
     
     try {
@@ -32,7 +32,7 @@ function getFlagEmoji(countryCode) {
         return flag;
     } catch (e) {
         console.error('Error generating flag emoji:', e);
-        return '🌍'; // Earth emoji as fallback
+        return '❔'; // Question mark emoji as fallback
     }
 }
 
@@ -72,18 +72,29 @@ function addFlagToMessage() {
     });
 }
 
-// Detect country using ip-api.com
+// Detect country using ipify.org for IP and ip-api.com for geolocation
 (async function() {
     try {
-        console.log('Starting country detection with ip-api.com...');
+        console.log('Starting IP detection with ipify.org...');
         
-        const response = await fetch('https://ip-api.com/json/?fields=status,message,countryCode');
-        if (response.ok) {
-            const data = await response.json();
-            console.log('ip-api.com response:', data);
+        // First get the IP address using ipify.org
+        const ipResponse = await fetch('https://api.ipify.org?format=json');
+        if (!ipResponse.ok) throw new Error('Failed to get IP address');
+        
+        const ipData = await ipResponse.json();
+        const ip = ipData.ip;
+        console.log('IP address:', ip);
+        
+        // Then get country info using ip-api.com with the obtained IP
+        console.log('Getting country info for IP:', ip);
+        const geoResponse = await fetch(`https://ip-api.com/json/${ip}?fields=status,message,countryCode`);
+        
+        if (geoResponse.ok) {
+            const geoData = await geoResponse.json();
+            console.log('ip-api.com response:', geoData);
             
-            if (data && data.status === 'success' && data.countryCode) {
-                window.userCountryCode = data.countryCode.toUpperCase();
+            if (geoData && geoData.status === 'success' && geoData.countryCode) {
+                window.userCountryCode = geoData.countryCode.toUpperCase();
                 console.log('Country code set (ip-api.com):', window.userCountryCode);
                 return;
             }
