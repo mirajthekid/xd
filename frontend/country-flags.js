@@ -27,19 +27,32 @@ async function detectCountry() {
     }
 }
 
-// Function to add a flag next to a username
+// Function to convert country code to emoji
+function countryCodeToEmoji(cc) {
+    if (!cc || cc.length !== 2) return '🌐';
+    return String.fromCodePoint(...cc.toUpperCase().split('').map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+}
+
+// Function to add a flag next to a username (emoji only)
 function addFlagToUsername(username) {
-    console.log('Attempting to add flag for username:', username);
-    // Create flag image
-    const flagImg = document.createElement('img');
-    flagImg.src = `https://flagcdn.com/24x18/${userCountryCode}.png`;
-    flagImg.alt = userCountryCode.toUpperCase();
-    flagImg.title = `From ${userCountryCode.toUpperCase()}`;
-    flagImg.className = 'country-flag';
-    flagImg.style.width = '24px';
-    flagImg.style.height = '18px';
-    flagImg.style.marginLeft = '5px';
-    flagImg.style.verticalAlign = 'middle';
+    console.log('Attempting to add emoji flag for username:', username);
+    // Only add one flag per username/message
+    if (window.__flagAddedFor && window.__flagAddedFor[username]) {
+        console.log('Flag already added for', username);
+        return;
+    }
+    if (!window.__flagAddedFor) window.__flagAddedFor = {};
+    window.__flagAddedFor[username] = true;
+
+    // Create emoji flag
+    const emoji = countryCodeToEmoji(userCountryCode);
+    const emojiSpan = document.createElement('span');
+    emojiSpan.textContent = emoji;
+    emojiSpan.title = `From ${userCountryCode.toUpperCase()}`;
+    emojiSpan.className = 'country-flag';
+    emojiSpan.style.marginLeft = '5px';
+    emojiSpan.style.fontSize = '1.3em';
+    emojiSpan.style.verticalAlign = 'middle';
 
     // Try to find username as a span or strong or b element (common in chat UIs)
     let found = false;
@@ -54,10 +67,10 @@ function addFlagToUsername(username) {
     possibleSelectors.forEach(sel => {
         document.querySelectorAll(sel).forEach(el => {
             if (el.textContent.trim() === username && !el.dataset.flagAdded) {
-                el.insertAdjacentElement('afterend', flagImg.cloneNode(true));
+                el.insertAdjacentElement('afterend', emojiSpan.cloneNode(true));
                 el.dataset.flagAdded = 'true';
                 found = true;
-                console.log('Flag added after element:', el);
+                console.log('Emoji flag added after element:', el);
             }
         });
     });
@@ -67,10 +80,10 @@ function addFlagToUsername(username) {
         const systemMessages = document.querySelectorAll('.system-message, .message, [class*="chat-message"]');
         systemMessages.forEach(msg => {
             if (msg.textContent.includes(username) && !msg.dataset.flagAdded) {
-                msg.appendChild(flagImg.cloneNode(true));
+                msg.appendChild(emojiSpan.cloneNode(true));
                 msg.dataset.flagAdded = 'true';
                 found = true;
-                console.log('Flag added in fallback to message:', msg);
+                console.log('Emoji flag added in fallback to message:', msg);
             }
         });
     }
