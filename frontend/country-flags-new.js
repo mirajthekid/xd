@@ -46,11 +46,16 @@ function processChatMessages() {
         // Mark as processed
         element.dataset.flagAdded = 'true';
         
-        // Only add flag to other users' messages (not our own)
         const messageElement = element.closest('.message');
-        if (messageElement && !messageElement.classList.contains('outgoing')) {
+        if (!messageElement) return;
+        
+        // Add flag to incoming messages (other users' messages)
+        if (messageElement.classList.contains('incoming')) {
+            // For incoming messages, show the other user's flag (using the window flag for now)
+            // In a real implementation, you would get the other user's country code
             addFlagToUsername(element, getFlagEmoji(window.userCountryCode));
         }
+        // No flag for outgoing messages (current user's messages)
     });
 }
 
