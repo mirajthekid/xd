@@ -1,7 +1,13 @@
-// country-flags.js - Optimized Implementation with all country flags
+// country-flags.js - Display chat partner's country flag
 console.log('Country flags script loaded');
 
-// Tüm ülke kodları ve bayrak emojileri
+// Store user's own country code
+window.userCountryCode = 'US'; // Will be updated by IP detection
+
+// Store chat partner's country code
+window.chatPartnerCountryCode = '';
+
+// Map of country codes to flag emojis
 const countryFlags = {
     'AD': '🇦🇩', 'AE': '🇦🇪', 'AF': '🇦🇫', 'AG': '🇦🇬', 'AI': '🇦🇮', 'AL': '🇦🇱', 'AM': '🇦🇲', 'AO': '🇦🇴', 'AQ': '🇦🇶', 'AR': '🇦🇷',
     'AS': '🇦🇸', 'AT': '🇦🇹', 'AU': '🇦🇺', 'AW': '🇦🇼', 'AX': '🇦🇽', 'AZ': '🇦🇿', 'BA': '🇧🇦', 'BB': '🇧🇧', 'BD': '🇧🇩', 'BE': '🇧🇪',
@@ -30,19 +36,13 @@ const countryFlags = {
     'VN': '🇻🇳', 'VU': '🇻🇺', 'WF': '🇼🇫', 'WS': '🇼🇸', 'XK': '🇽🇰', 'YE': '🇾🇪', 'YT': '🇾🇹', 'ZA': '🇿🇦', 'ZM': '🇿🇲', 'ZW': '🇿🇼'
 };
 
-// Kullanıcı ülke kodu
-window.userCountryCode = 'US'; // Varsayılan değer
-window.otherUserCountryCode = 'TR'; // Varsayılan diğer kullanıcı kodu
-
-// Kullanıcı adından ülke kodu çıkarma (örnek: "John_US" -> "US")
-function getCountryCodeFromUsername(username) {
-    if (!username) return null;
-    const match = username.match(/_(\w{2})$/i);
-    if (match && match[1]) {
-        const code = match[1].toUpperCase();
-        return countryFlags[code] ? code : null;
+// Function to update chat partner's country code (call this when you get the partner's info)
+function updateChatPartnerCountry(countryCode) {
+    if (countryCode && countryCode.length === 2) {
+        window.chatPartnerCountryCode = countryCode.toUpperCase();
+        // Update any existing messages
+        processChatMessages();
     }
-    return null;
 }
 
 // Start country detection in the background
@@ -95,35 +95,31 @@ function addFlagToUsername(usernameElement, flag) {
  * Processes all chat messages to add country flags
  */
 function processChatMessages() {
-    // Sadece işlenmemiş mesajları al
+    // Only process unprocessed messages
     const messages = document.querySelectorAll('.message:not([data-flag-processed])');
     
     messages.forEach(message => {
-        // İşaretle
+        // Mark as processed
         message.dataset.flagProcessed = 'true';
         
-        // Sistem mesajlarını atla (bayrak eklemeye gerek yok)
+        // Skip system messages
         if (message.classList.contains('system')) {
             return;
         }
         
-        // Mesaj gönderen elementini bul
+        // Find the sender element
         const senderElement = message.querySelector('.message-sender');
         if (!senderElement) return;
         
-        // Kullanıcı adını al (varsa)
-        const username = senderElement.textContent.replace(':', '').trim();
-        
-        // Gelen mesajlarda (karşı tarafın mesajları)
+        // For incoming messages (from chat partner)
         if (message.classList.contains('incoming')) {
-            // Kullanıcı adından ülke kodunu çıkar
-            const countryCode = getCountryCodeFromUsername(username) || window.otherUserCountryCode;
-            const flag = countryFlags[countryCode] || '🌍'; // Varsayılan bayrak
+            // Show chat partner's country flag
+            const flag = countryFlags[window.chatPartnerCountryCode] || '🌍';
             addFlagToUsername(senderElement, flag);
         } 
-        // Giden mesajlarda (kendi mesajlarımız)
+        // For outgoing messages (current user's messages)
         else if (message.classList.contains('outgoing')) {
-            // Kendi bayrağımızı ekle
+            // Show user's own country flag
             const flag = countryFlags[window.userCountryCode] || '🌍';
             addFlagToUsername(senderElement, flag);
         }
