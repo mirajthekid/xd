@@ -1,5 +1,4 @@
-// Handle country flags for chat partners
-let chatPartnerCountryCode = null;
+// Simple country flags for chat system
 
 // Map of country codes to flag emojis
 const countryFlags = {
@@ -23,28 +22,36 @@ async function updatePartnerCountry(ip) {
         const response = await fetch(`https://ipapi.co/${ip}/json/`);
         const data = await response.json();
         if (data.country_code) {
-            chatPartnerCountryCode = data.country_code.toUpperCase();
-            return getCountryFlag(chatPartnerCountryCode);
+            const countryCode = data.country_code.toUpperCase();
+            const flag = countryFlags[countryCode] || '🌍';
+            
+            // Find and update the system message
+            const systemMsg = Array.from(document.querySelectorAll('.message.system'))
+                .find(msg => msg.textContent.includes('You are now chatting with'));
+                
+            if (systemMsg) {
+                const username = systemMsg.textContent.split('You are now chatting with ')[1]
+                    .replace(/[\u{1F1E6}-\u{1F1FF}]{2}|\p{Emoji}/gu, '')
+                    .trim();
+                systemMsg.textContent = `You are now chatting with ${username} ${flag}`;
+            }
         }
     } catch (error) {
         console.error('Error fetching country:', error);
     }
-    return '🌍';
 }
 
-// Function to add flag to chat partner's messages
-function addFlagToMessage(messageElement) {
-    if (!messageElement || !messageElement.classList.contains('incoming')) return;
-    
-    const senderElement = messageElement.querySelector('.message-sender');
-    if (!senderElement) return;
-
-    // Only add flag if it's not already there
-    if (!senderElement.textContent.includes('🇦') && !senderElement.textContent.includes('🌍')) {
-        const username = senderElement.textContent.replace(':', '').trim();
-        const flag = getCountryFlag(chatPartnerCountryCode);
-        senderElement.textContent = `${username} ${flag}:`;
-    }
+// Function to update system message with flag
+function updateSystemMessage(flag) {
+    const messages = document.querySelectorAll('.message.system');
+    messages.forEach(msg => {
+        if (msg.textContent.includes('You are now chatting with')) {
+            const username = msg.textContent.split('You are now chatting with ')[1].trim();
+            // Remove any existing flags first
+            const cleanUsername = username.replace(/[\u{1F1E6}-\u{1F1FF}]{2}|\p{Emoji}/gu, '').trim();
+            msg.textContent = `You are now chatting with ${cleanUsername} ${flag}`;
+        }
+    });
 }
 
 // Function to process all messages and add flags

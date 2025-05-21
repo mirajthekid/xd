@@ -511,12 +511,10 @@ function handleMatch(data) {
     
     // Get partner's country from IP if available
     if (data.partnerIp && window.updatePartnerCountry) {
-        window.updatePartnerCountry(data.partnerIp).then(() => {
-            // Process existing messages to add flags
-            if (window.processMessages) {
-                window.processMessages();
-            }
-        });
+        // Small delay to ensure system message is rendered
+        setTimeout(() => {
+            window.updatePartnerCountry(data.partnerIp);
+        }, 100);
     }
     
     // Auto-focus message input
