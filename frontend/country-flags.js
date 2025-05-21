@@ -1,9 +1,13 @@
-// country-flags.js - IP Geolocation Version
-console.log('Country flags script loaded - IP Geolocation');
+// country-flags.js - New Version
+console.log('Country flags script loaded - New Version');
+
+// Global variable to store the country code
+let userCountryCode = 'us'; // Default fallback
 
 // Function to get country code from IP
-async function getCountryFromIP() {
+async function detectCountry() {
     try {
+        console.log('Detecting country...');
         // Using ipapi.co service (free tier available)
         const response = await fetch('https://ipapi.co/json/');
         if (!response.ok) throw new Error('Failed to fetch location data');
@@ -11,64 +15,79 @@ async function getCountryFromIP() {
         const data = await response.json();
         console.log('IP Geolocation data:', data);
         
-        // Return the country code (e.g., 'TR', 'US')
-        return data.country_code.toLowerCase();
+        // Store the country code globally
+        userCountryCode = data.country_code ? data.country_code.toLowerCase() : 'us';
+        console.log('Country code set to:', userCountryCode);
+        
+        // Return the flag URL for immediate use if needed
+        return `https://flagcdn.com/24x18/${userCountryCode}.png`;
     } catch (error) {
-        console.error('Error getting country from IP:', error);
-        return 'us'; // Default fallback
+        console.error('Error detecting country:', error);
+        return 'https://flagcdn.com/24x18/us.png'; // Default to US flag on error
     }
 }
 
-// Function to add a flag to a username
-async function addFlagToUsername(username) {
-    try {
-        console.log('Adding flag for username:', username);
-        
-        // Get country code from IP
-        const countryCode = await getCountryFromIP();
-        console.log('Detected country code:', countryCode);
-        
-        // Create flag image
-        const flagImg = document.createElement('img');
-        flagImg.src = `https://flagcdn.com/24x18/${countryCode}.png`;
-        flagImg.alt = countryCode.toUpperCase();
-        flagImg.title = `From ${countryCode.toUpperCase()}`;
-        flagImg.className = 'country-flag';
-        flagImg.style.width = '24px';
-        flagImg.style.height = '18px';
-        flagImg.style.marginLeft = '5px';
-        flagImg.style.verticalAlign = 'middle';
-        
-        // Find all elements that contain the username
-        const elements = document.querySelectorAll('*');
-        let found = false;
-        
-        elements.forEach(element => {
-            if (element.textContent && 
-                element.textContent.includes(username) && 
-                !element.dataset.flagAdded) {
-                
-                console.log('Found username element, adding flag');
-                element.parentNode.insertBefore(flagImg.cloneNode(true), element.nextSibling);
-                element.dataset.flagAdded = 'true';
-                found = true;
-            }
-        });
-        
-        if (!found) {
-            console.log('Could not find username in the DOM');
-        }
-    } catch (error) {
-        console.error('Error in addFlagToUsername:', error);
-    }
-}
-
-// Function to check for new messages
-function checkForMessages() {
-    console.log('Checking for messages...');
+// Function to add a flag next to a username
+function addFlagToUsername(username) {
+    console.log('Attempting to add flag for username:', username);
     
-    // Look for messages in all divs
-    const messages = document.querySelectorAll('div');
+    // Create flag image
+    const flagImg = document.createElement('img');
+    flagImg.src = `https://flagcdn.com/24x18/${userCountryCode}.png`;
+    flagImg.alt = userCountryCode.toUpperCase();
+    flagImg.title = `From ${userCountryCode.toUpperCase()}`;
+    flagImg.className = 'country-flag';
+    flagImg.style.width = '24px';
+    flagImg.style.height = '18px';
+    flagImg.style.marginLeft = '5px';
+    flagImg.style.verticalAlign = 'middle';
+    
+    // Try to find the username in the chat messages
+    const chatMessages = document.getElementById('chat-messages') || document.body;
+    const textNodes = [];
+    
+    // Find all text nodes that contain the username
+    const walker = document.createTreeWalker(
+        chatMessages,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+        if (node.nodeValue.includes(`You are now chatting with ${username}`)) {
+            textNodes.push(node);
+        }
+    }
+    
+    // Add flag next to each found username
+    textNodes.forEach(textNode => {
+        const parent = textNode.parentNode;
+        if (parent && !parent.dataset.flagAdded) {
+            // Create a span to wrap the username and flag
+            const wrapper = document.createElement('span');
+            wrapper.style.display = 'inline-flex';
+            wrapper.style.alignItems = 'center';
+            
+            // Replace the text node with our wrapper
+            parent.replaceChild(wrapper, textNode);
+            wrapper.appendChild(document.createTextNode(textNode.nodeValue));
+            wrapper.appendChild(flagImg.cloneNode(true));
+            
+            parent.dataset.flagAdded = 'true';
+            console.log('Added flag for username:', username);
+        }
+    });
+    
+    if (textNodes.length === 0) {
+        console.log('Username not found in chat messages');
+    }
+}
+
+// Function to check for new messages and add flags
+function checkForNewMessages() {
+    const messages = document.querySelectorAll('.system-message, .message, [class*="chat-message"]');
     
     messages.forEach(message => {
         const text = message.textContent || '';
@@ -76,7 +95,7 @@ function checkForMessages() {
         
         if (match && match[1] && !message.dataset.flagChecked) {
             const username = match[1];
-            console.log('Found message with username:', username);
+            console.log('Found new message with username:', username);
             addFlagToUsername(username);
             message.dataset.flagChecked = 'true';
         }
@@ -86,14 +105,41 @@ function checkForMessages() {
 // Initialize when the page loads
 console.log('Initializing country flags...');
 
-// Initial check
-checkForMessages();
-
-// Check every 2 seconds for new messages
-const interval = setInterval(checkForMessages, 2000);
-
-// Stop checking after 1 minute
-setTimeout(() => {
-    clearInterval(interval);
-    console.log('Stopped checking for messages');
-}, 60000);
+// Detect country first
+detectCountry().then(() => {
+    console.log('Country detection complete, starting message monitoring...');
+    
+    // Initial check
+    checkForNewMessages();
+    
+    // Set up a mutation observer to watch for new messages
+    const observer = new MutationObserver((mutations) => {
+        let shouldCheck = false;
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                shouldCheck = true;
+            }
+        });
+        
+        if (shouldCheck) {
+            checkForNewMessages();
+        }
+    });
+    
+    // Start observing the chat container
+    const chatContainer = document.getElementById('chat-messages') || document.body;
+    observer.observe(chatContainer, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+    
+    // Also check periodically as a fallback
+    const interval = setInterval(checkForNewMessages, 3000);
+    
+    // Stop checking after 2 minutes
+    setTimeout(() => {
+        clearInterval(interval);
+        console.log('Stopped checking for new messages');
+    }, 120000);
+});
