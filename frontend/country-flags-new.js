@@ -54,23 +54,36 @@ function addFlagToUsername(usernameElement, flag) {
  * Processes all chat messages to add country flags
  */
 function processChatMessages() {
-    // Get all message senders that haven't been processed yet
-    const usernameElements = document.querySelectorAll('.message-sender:not([data-flag-added])');
+    // Process both system and regular messages
+    const messages = document.querySelectorAll('.message:not([data-flag-processed])');
     
-    usernameElements.forEach(element => {
+    messages.forEach(message => {
         // Mark as processed
-        element.dataset.flagAdded = 'true';
+        message.dataset.flagProcessed = 'true';
         
-        const messageElement = element.closest('.message');
-        if (!messageElement) return;
-        
-        // Add flag to incoming messages (other users' messages)
-        if (messageElement.classList.contains('incoming')) {
-            // For incoming messages, show the other user's flag (using the window flag for now)
-            // In a real implementation, you would get the other user's country code
-            addFlagToUsername(element, getFlagEmoji(window.userCountryCode));
+        // Handle system messages (like "You are now chatting with...")
+        if (message.classList.contains('system')) {
+            const text = message.textContent || '';
+            const match = text.match(/You are now chatting with (\w+)/i) || 
+                       text.match(/Chatting with (\w+)/i) ||
+                       text.match(/(\w+) joined the chat/i);
+            
+            if (match && match[1]) {
+                const flag = getFlagEmoji(window.userCountryCode);
+                message.textContent = `${message.textContent} ${flag}`;
+            }
+            return;
         }
-        // No flag for outgoing messages (current user's messages)
+        
+        // Handle regular chat messages
+        const senderElement = message.querySelector('.message-sender');
+        if (!senderElement) return;
+        
+        // Only add flag to incoming messages (other users' messages)
+        if (message.classList.contains('incoming')) {
+            const flag = getFlagEmoji(window.userCountryCode);
+            addFlagToUsername(senderElement, flag);
+        }
     });
 }
 
