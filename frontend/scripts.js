@@ -506,15 +506,21 @@ function handleMatch(data) {
     // Show chat screen
     showScreen(chatScreen);
     
-    // Display system message about the match
-    displayMessage(`Connected with ${partnerUsername}`, null, 'system');
-    
-    // Get partner's country from IP if available
-    if (data.partnerIp && window.updatePartnerCountry) {
-        // Small delay to ensure system message is rendered
-        setTimeout(() => {
-            window.updatePartnerCountry(data.partnerIp);
-        }, 100);
+    // Get partner's country first, then display system message
+    if (data.partnerIp) {
+        fetch(`https://ipapi.co/${data.partnerIp}/json/`)
+            .then(response => response.json())
+            .then(ipData => {
+                const countryCode = ipData.country_code?.toUpperCase();
+                const flag = countryFlags[countryCode] || '🌍';
+                displayMessage(`Connected with ${partnerUsername} ${flag}`, null, 'system');
+            })
+            .catch(error => {
+                console.error('Error fetching country:', error);
+                displayMessage(`Connected with ${partnerUsername} 🌍`, null, 'system');
+            });
+    } else {
+        displayMessage(`Connected with ${partnerUsername} 🌍`, null, 'system');
     }
     
     // Auto-focus message input
