@@ -1,19 +1,34 @@
 // country-flags.js - Direct Implementation
-console.log('Country flags script loaded - Direct Implementation');
+console.log('Country flags script loaded - Debug Version');
 
 // Set default to Earth emoji
 window.userCountryCode = null;
 
+// Debug: List of valid country codes for reference
+const validCountryCodes = new Set([
+    'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'IT', 'ES', 'JP', 'CN', 'RU', 'BR', 'IN', 'TR', 'SA', 'AE', 'EG', 'ZA'
+    // Add more country codes as needed
+]);
+
 // Function to get flag emoji from country code
 function getFlagEmoji(countryCode) {
-    if (!countryCode) return '🌍'; // Earth emoji as fallback
+    console.log('getFlagEmoji called with:', countryCode);
+    
+    if (!countryCode || !validCountryCodes.has(countryCode)) {
+        console.log('Using Earth emoji as fallback for code:', countryCode);
+        return '🌍';
+    }
+    
     try {
         const codePoints = countryCode
             .toUpperCase()
             .split('')
             .map(char => 127397 + char.charCodeAt())
             .map(code => String.fromCodePoint(code));
-        return codePoints.join('');
+            
+        const flag = codePoints.join('');
+        console.log('Generated flag:', flag, 'for code:', countryCode);
+        return flag;
     } catch (e) {
         console.error('Error generating flag emoji:', e);
         return '🌍'; // Earth emoji as fallback
@@ -59,30 +74,45 @@ function addFlagToMessage() {
 // Detect country
 (async function() {
     try {
-        console.log('Detecting country...');
-        // Try ipinfo.io first
-        const response = await fetch('https://ipinfo.io/json?token=2c6c2a2d4b9a4d');
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.country) {
-                window.userCountryCode = data.country.toUpperCase();
-                console.log('Country code set to (ipinfo):', window.userCountryCode);
-                return;
+        console.log('Starting country detection...');
+        
+        // Try ipapi.co first (more reliable)
+        try {
+            console.log('Trying ipapi.co...');
+            const response = await fetch('https://ipapi.co/json/');
+            if (response.ok) {
+                const data = await response.json();
+                console.log('ipapi.co response:', data);
+                if (data && data.country_code) {
+                    window.userCountryCode = data.country_code.toUpperCase();
+                    console.log('Country code set (ipapi.co):', window.userCountryCode);
+                    return;
+                }
             }
+        } catch (e) {
+            console.warn('ipapi.co failed, trying fallback...', e);
         }
         
-        // Fallback to ipapi.co
-        const fallbackResponse = await fetch('https://ipapi.co/json/');
-        if (fallbackResponse.ok) {
-            const data = await fallbackResponse.json();
-            if (data && data.country_code) {
-                window.userCountryCode = data.country_code.toUpperCase();
-                console.log('Country code set to (ipapi):', window.userCountryCode);
+        // Fallback to ipinfo.io
+        try {
+            console.log('Trying ipinfo.io...');
+            const fallbackResponse = await fetch('https://ipinfo.io/json?token=2c6c2a2d4b9a4d');
+            if (fallbackResponse.ok) {
+                const data = await fallbackResponse.json();
+                console.log('ipinfo.io response:', data);
+                if (data && data.country) {
+                    window.userCountryCode = data.country.toUpperCase();
+                    console.log('Country code set (ipinfo.io):', window.userCountryCode);
+                    return;
+                }
             }
+        } catch (e) {
+            console.warn('ipinfo.io failed', e);
         }
+        
+        console.log('Using Earth emoji as fallback - no valid country code found');
     } catch (error) {
-        console.error('Error detecting country:', error);
-        // Keep the Earth emoji as fallback
+        console.error('Error in country detection:', error);
     }
     
     // Initial check
