@@ -21,7 +21,10 @@ function getFlagEmoji(countryCode) {
         return '❔';
     }
     
-    if (!validCountryCodes.has(countryCode)) {
+    // Convert to uppercase for case-insensitive comparison
+    const upperCode = countryCode.toUpperCase();
+    
+    if (!validCountryCodes.has(upperCode)) {
         console.log('Country code not in valid list, using fallback:', countryCode);
         return '❔';
     }
@@ -102,8 +105,10 @@ function addFlagToMessage() {
             console.log('ip-api.com response:', geoData);
             
             if (geoData && geoData.status === 'success' && geoData.countryCode) {
+                // Ensure country code is uppercase for consistency
                 window.userCountryCode = geoData.countryCode.toUpperCase();
                 console.log('Country code set (ip-api.com):', window.userCountryCode);
+                console.log('Valid country codes:', Array.from(validCountryCodes));
                 return;
             }
         }
