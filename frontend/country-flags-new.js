@@ -1,11 +1,11 @@
 // country-flags.js - Display chat partner's country flag
 console.log('Country flags script loaded');
 
-// Store user's own country code
-window.userCountryCode = 'US'; // Will be updated by IP detection
+// Store user's own country code (will be updated by IP detection)
+window.userCountryCode = 'US';
 
-// Store chat partner's country code
-window.chatPartnerCountryCode = 'US'; // Default value
+// Store chat partner's country code (will be updated when matched)
+window.chatPartnerCountryCode = 'US';
 
 // Map of country codes to flag emojis
 const countryFlags = {
@@ -95,10 +95,15 @@ function addFlagToUsername(usernameElement, flag) {
  * Processes all chat messages to add country flags
  */
 function processChatMessages() {
-    // Only process unprocessed messages
-    const messages = document.querySelectorAll('.message:not([data-flag-processed])');
+    // Process both new and existing messages
+    const messages = document.querySelectorAll('.message');
     
     messages.forEach(message => {
+        // Skip if already processed
+        if (message.dataset.flagProcessed === 'true') {
+            return;
+        }
+        
         // Mark as processed
         message.dataset.flagProcessed = 'true';
         
@@ -111,20 +116,32 @@ function processChatMessages() {
         const senderElement = message.querySelector('.message-sender');
         if (!senderElement) return;
         
+        // Get the username (remove colon if present)
+        const username = senderElement.textContent.replace(':', '').trim();
+        
         // For incoming messages (from chat partner)
         if (message.classList.contains('incoming')) {
             // Show chat partner's country flag
             const flag = countryFlags[window.chatPartnerCountryCode] || '🌍';
-            addFlagToUsername(senderElement, flag);
+            // Clear any existing flags and add the correct one
+            const cleanUsername = username.replace(/[\u{1F1E6}-\u{1F1FF}]{2}|\p{Emoji}/gu, '').trim();
+            senderElement.textContent = `${cleanUsername}:`;
+            senderElement.textContent += ` ${flag}`;
         } 
         // For outgoing messages (current user's messages)
         else if (message.classList.contains('outgoing')) {
             // Show user's own country flag
             const flag = countryFlags[window.userCountryCode] || '🌍';
-            addFlagToUsername(senderElement, flag);
+            // Clear any existing flags and add the correct one
+            const cleanUsername = username.replace(/[\u{1F1E6}-\u{1F1FF}]{2}|\p{Emoji}/gu, '').trim();
+            senderElement.textContent = `${cleanUsername}:`;
+            senderElement.textContent += ` ${flag}`;
         }
     });
 }
+
+// Make the function available globally
+window.processChatMessages = processChatMessages;
 
 /**
  * Initializes the country flag system

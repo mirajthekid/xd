@@ -504,8 +504,15 @@ function handleMatch(data) {
     partnerUsername = data.partnerUsername;
     
     // Set the chat partner's country code if provided
-    if (data.partnerCountryCode && window.updateChatPartnerCountry) {
-        window.updateChatPartnerCountry(data.partnerCountryCode);
+    if (data.partnerCountryCode) {
+        window.chatPartnerCountryCode = data.partnerCountryCode.toUpperCase();
+        console.log('Chat partner country code set to:', window.chatPartnerCountryCode);
+        
+        // Process all messages to update flags
+        if (window.processChatMessages) {
+            // Small delay to ensure DOM is updated
+            setTimeout(window.processChatMessages, 100);
+        }
     }
     
     // Show chat screen
@@ -514,8 +521,12 @@ function handleMatch(data) {
     // Display system message about the match
     displayMessage(`Connected with ${partnerUsername}`, null, 'system');
     
-    // Clear any previous messages
-    // chatMessages.innerHTML = '';
+    // Process messages after a short delay to ensure DOM is ready
+    setTimeout(() => {
+        if (window.processChatMessages) {
+            window.processChatMessages();
+        }
+    }, 300);
     
     // Auto-focus message input
     messageInput.focus();
@@ -1181,7 +1192,8 @@ function sendMessage() {
 function displayMessage(content, sender, type = 'message', timestamp = null) {
     // Create message container
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type === 'system' ? 'system' : sender === username ? 'outgoing' : 'incoming'}`;
+    const isOutgoing = sender === username;
+    messageDiv.className = `message ${type === 'system' ? 'system' : isOutgoing ? 'outgoing' : 'incoming'}`;
     
     if (type === 'system') {
         // System messages are simple text
@@ -1202,19 +1214,22 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
         // Add sender name
         const senderSpan = document.createElement('span');
         senderSpan.className = 'message-sender';
-        senderSpan.textContent = sender === username ? `${username}:` : `${sender}:`;
+        senderSpan.textContent = isOutgoing ? `${username}:` : `${sender}:`;
+        
+        // Add flag emoji based on message type
+        const flag = isOutgoing 
+            ? (countryFlags[window.userCountryCode] || '🌍')
+            : (countryFlags[window.chatPartnerCountryCode] || '🌍');
+            
+        // Add flag to sender name
+        senderSpan.textContent += ` ${flag}`;
+        
         messageWrapper.appendChild(senderSpan);
         
         // Add message content with glitch effect
         const contentSpan = document.createElement('span');
         contentSpan.className = 'message-content';
-        
-        // Apply glitch effect to the content
-        if (type !== 'system') {
-            contentSpan.appendChild(glitchText(content));
-        } else {
-            contentSpan.textContent = content;
-        }
+        contentSpan.appendChild(glitchText(content));
         
         messageWrapper.appendChild(contentSpan);
         
@@ -1224,6 +1239,9 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
     
     // Add to chat container
     chatMessages.appendChild(messageDiv);
+    
+    // Ensure the message is visible
+    messageDiv.scrollIntoView({ behavior: 'smooth' });
     
     // Scroll to bottom with a slight delay to ensure rendering is complete
     setTimeout(() => {
