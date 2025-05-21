@@ -1,13 +1,14 @@
 // country-flags.js - Direct Implementation
-console.log('Country flags script loaded - Debug Version');
+console.log('Country flags script loaded - Canadian Flag Test');
 
-// Set default to Earth emoji
-window.userCountryCode = null;
+// Force Canadian flag for testing
+window.userCountryCode = 'CA';
+console.log('Forcing Canadian flag (CA) for testing');
 
 // Debug: List of valid country codes for reference
 const validCountryCodes = new Set([
-    'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'IT', 'ES', 'JP', 'CN', 'RU', 'BR', 'IN', 'TR', 'SA', 'AE', 'EG', 'ZA'
-    // Add more country codes as needed
+    'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'IT', 'ES', 'JP', 'CN', 'RU', 'BR', 'IN', 'TR', 'SA', 'AE', 'EG', 'ZA',
+    'CA' // Make sure CA is included
 ]);
 
 // Function to get flag emoji from country code
@@ -71,48 +72,28 @@ function addFlagToMessage() {
     });
 }
 
-// Detect country
+// Detect country using ip-api.com
 (async function() {
     try {
-        console.log('Starting country detection...');
+        console.log('Starting country detection with ip-api.com...');
         
-        // Try ipapi.co first (more reliable)
-        try {
-            console.log('Trying ipapi.co...');
-            const response = await fetch('https://ipapi.co/json/');
-            if (response.ok) {
-                const data = await response.json();
-                console.log('ipapi.co response:', data);
-                if (data && data.country_code) {
-                    window.userCountryCode = data.country_code.toUpperCase();
-                    console.log('Country code set (ipapi.co):', window.userCountryCode);
-                    return;
-                }
+        const response = await fetch('https://ip-api.com/json/?fields=status,message,countryCode');
+        if (response.ok) {
+            const data = await response.json();
+            console.log('ip-api.com response:', data);
+            
+            if (data && data.status === 'success' && data.countryCode) {
+                window.userCountryCode = data.countryCode.toUpperCase();
+                console.log('Country code set (ip-api.com):', window.userCountryCode);
+                return;
             }
-        } catch (e) {
-            console.warn('ipapi.co failed, trying fallback...', e);
         }
         
-        // Fallback to ipinfo.io
-        try {
-            console.log('Trying ipinfo.io...');
-            const fallbackResponse = await fetch('https://ipinfo.io/json?token=2c6c2a2d4b9a4d');
-            if (fallbackResponse.ok) {
-                const data = await fallbackResponse.json();
-                console.log('ipinfo.io response:', data);
-                if (data && data.country) {
-                    window.userCountryCode = data.country.toUpperCase();
-                    console.log('Country code set (ipinfo.io):', window.userCountryCode);
-                    return;
-                }
-            }
-        } catch (e) {
-            console.warn('ipinfo.io failed', e);
-        }
-        
-        console.log('Using Earth emoji as fallback - no valid country code found');
+        console.log('Using question mark emoji as fallback');
+        window.userCountryCode = null; // Will trigger the question mark fallback
     } catch (error) {
         console.error('Error in country detection:', error);
+        window.userCountryCode = null; // Will trigger the question mark fallback
     }
     
     // Initial check
