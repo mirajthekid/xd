@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.id = 'message-input';
         input.className = 'chat-message-input';
         input.autocomplete = 'off';
-        input.placeholder = 'ENTER CHAT';
+        input.placeholder = '';
         input.inputMode = 'text'; // Better keyboard on mobile
         input.enterKeyHint = 'send'; // Show send button on mobile keyboard
         

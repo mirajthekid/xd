@@ -178,27 +178,6 @@ body {
 }
 
 /* Input styling */
-@keyframes typing {
-    from { width: 0 }
-    to { width: 100% }
-}
-
-@keyframes blink-caret {
-    from, to { border-color: transparent }
-    50% { border-color: var(--accent-color); }
-}
-
-.chat-message-input::placeholder {
-    animation: 
-        typing 3.5s steps(9, end) infinite,
-        blink-caret 0.75s step-end infinite;
-    white-space: nowrap;
-    overflow: hidden;
-    border-right: 2px solid var(--accent-color);
-    margin-right: -2px;
-    display: inline-block;
-}
-
 .input-line {
     display: flex;
     align-items: center;
