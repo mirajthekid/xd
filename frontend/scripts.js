@@ -201,13 +201,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.showScreen = function(screen) {
         // Check if trying to show chat screen without authentication
         if (screen === chatScreen && sessionStorage.getItem('userVerified') !== 'true') {
-            // Clear any pending redirects to prevent loops
-            sessionStorage.removeItem('pendingScreen');
-            // Force a hard redirect to root to ensure clean state
-            const redirectUrl = new URL(window.location.origin);
-            redirectUrl.searchParams.set('auth_required', 'true');
-            window.location.href = redirectUrl.toString();
-            return; // Stop further execution
+            // Only redirect if we're not already on the home page
+            if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
+                // Store the attempted URL for after login
+                sessionStorage.setItem('redirectAfterLogin', window.location.href);
+                // Redirect to home
+                window.location.href = '/';
+            } else {
+                // If we're already on the home page but not authenticated, just show login screen
+                screen = loginScreen;
+            }
         }
         
         // Call original function

@@ -1,16 +1,26 @@
 // Authentication verification script
 (function() {
-    // Immediately check if we're on a chat route
-    if (window.location.pathname.includes('/chat') || window.location.hash.includes('chat')) {
-        // Clear any existing verification to force re-authentication
+    // Check if we're in a redirect loop
+    const urlParams = new URLSearchParams(window.location.search);
+    const wasRedirected = urlParams.get('redirected') === 'true';
+    
+    // Clear the redirected flag to prevent loops
+    if (wasRedirected) {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+    
+    // Only check for chat route if we're not already on the home page
+    if ((window.location.pathname.includes('/chat') || window.location.hash.includes('chat')) && 
+        !window.location.pathname.endsWith('index.html') && 
+        window.location.pathname !== '/') {
+        
         const isVerified = sessionStorage.getItem('userVerified') === 'true';
-        if (!isVerified) {
-            // Clear any existing session data to prevent race conditions
-            sessionStorage.clear();
-            // Redirect to home with a flag to prevent loops
-            const redirectUrl = new URL(window.location.origin);
-            redirectUrl.searchParams.set('redirected', 'true');
-            window.location.href = redirectUrl.toString();
+        if (!isVerified && !wasRedirected) {
+            // Store the attempted URL for after login
+            sessionStorage.setItem('redirectAfterLogin', window.location.href);
+            // Redirect to home without the redirected flag
+            window.location.href = '/';
             return; // Stop execution
         }
     }
