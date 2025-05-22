@@ -482,6 +482,38 @@ body {
     white-space: nowrap;
 }
 
+/* Chat header buttons: skip + call */
+.chat-header-buttons {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin-right: 16px;
+}
+
+.chat-header-buttons .terminal-btn.small {
+    margin-right: 0;
+    margin-left: 0;
+    min-width: 36px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 600px) {
+    .chat-header-buttons {
+        gap: 6px;
+        margin-right: 6px;
+    }
+    .chat-header-buttons .terminal-btn.small {
+        min-width: 28px;
+        min-height: 24px;
+        font-size: 0.7rem;
+        padding: 2px 4px;
+    }
+}
+
 /* Chat controls removed as skip button is now in connection-info */
 
 .chat-messages {
