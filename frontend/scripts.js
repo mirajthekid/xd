@@ -199,18 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Override showScreen function to add chat input when needed
     window.originalShowScreen = window.showScreen;
     window.showScreen = function(screen) {
-        // Check if trying to show chat screen without authentication
+        // If trying to show chat screen but not verified, redirect to login
         if (screen === chatScreen && sessionStorage.getItem('userVerified') !== 'true') {
-            // Only redirect if we're not already on the home page
-            if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
-                // Store the attempted URL for after login
-                sessionStorage.setItem('redirectAfterLogin', window.location.href);
-                // Redirect to home
-                window.location.href = '/';
-            } else {
-                // If we're already on the home page but not authenticated, just show login screen
-                screen = loginScreen;
-            }
+            // Store the current URL for after login
+            sessionStorage.setItem('redirectAfterLogin', window.location.href);
+            screen = loginScreen;
         }
         
         // Call original function
