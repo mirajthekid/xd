@@ -201,10 +201,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.showScreen = function(screen) {
         // Check if trying to show chat screen without authentication
         if (screen === chatScreen && sessionStorage.getItem('userVerified') !== 'true') {
-            // Store the attempted action for after login
-            sessionStorage.setItem('pendingScreen', 'chat');
-            // Show login screen instead
-            screen = loginScreen;
+            // Clear any pending redirects to prevent loops
+            sessionStorage.removeItem('pendingScreen');
+            // Force a hard redirect to root to ensure clean state
+            const redirectUrl = new URL(window.location.origin);
+            redirectUrl.searchParams.set('auth_required', 'true');
+            window.location.href = redirectUrl.toString();
+            return; // Stop further execution
         }
         
         // Call original function
@@ -960,18 +963,25 @@ function handleSocketMessage(event) {
                 console.log('Login successful, userId:', userId);
                 console.log('Full login success data:', data);
                 
-                // Set verification flag in session storage
+                // Set verification flag in session storage with a timestamp
+                const authData = {
+                    verified: true,
+                    timestamp: Date.now(),
+                    userId: userId
+                };
                 sessionStorage.setItem('userVerified', 'true');
+                sessionStorage.setItem('authData', JSON.stringify(authData));
                 
-                // Check for pending screen redirect
-                const pendingScreen = sessionStorage.getItem('pendingScreen');
-                if (pendingScreen === 'chat') {
-                    sessionStorage.removeItem('pendingScreen');
-                    // Show waiting screen for chat
-                    showScreen(waitingScreen);
-                    updateWaitingStatus('Waiting for a partner...');
+                // Check for redirect URL in session storage
+                const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+                
+                if (redirectUrl) {
+                    // Clear the redirect URL to prevent loops
+                    sessionStorage.removeItem('redirectAfterLogin');
+                    // Redirect to the originally requested URL
+                    window.location.href = redirectUrl;
                 } else {
-                    // Default to waiting screen
+                    // Default to showing waiting screen
                     showScreen(waitingScreen);
                     updateWaitingStatus('Waiting for a partner...');
                 }
