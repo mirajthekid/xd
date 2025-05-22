@@ -98,11 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!window.utils) {
         console.error('Utils module not loaded. Some security features may not work.');
     }
-    
-    // Initialize CallManager when the page loads
-    if (document.getElementById('chat-screen')) {
-        initializeCallManager();
-    }
     // Apply mobile viewport fixes
     preventViewportIssues();
     
@@ -157,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.id = 'message-input';
         input.className = 'chat-message-input';
         input.autocomplete = 'off';
-        input.placeholder = '';
+        input.placeholder = 'ENTER CHAT';
         input.inputMode = 'text'; // Better keyboard on mobile
         input.enterKeyHint = 'send'; // Show send button on mobile keyboard
         
@@ -204,13 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Override showScreen function to add chat input when needed
     window.originalShowScreen = window.showScreen;
     window.showScreen = function(screen) {
-        // If trying to show chat screen but not verified, redirect to login
-        if (screen === chatScreen && sessionStorage.getItem('userVerified') !== 'true') {
-            // Store the current URL for after login
-            sessionStorage.setItem('redirectAfterLogin', window.location.href);
-            screen = loginScreen;
-        }
-        
         // Call original function
         if (window.originalShowScreen) {
             window.originalShowScreen(screen);
@@ -491,34 +479,17 @@ function handleSocketMessage(event) {
                     }
                 }
                 break;
-
+                
             case 'skip_notification':
                 // Handle skip notification from partner
                 handlePartnerSkip(data.username);
-                // --- WebRTC: Cleanup call on skip ---
-                if (window.callManager) window.callManager.endCallCleanup();
                 break;
-
+                
             case 'system':
                 // Display system message
                 displayMessage(data.content, null, 'system', data.timestamp);
                 break;
-
-            case 'call_offer':
-                // --- WebRTC: Handle call offer ---
-                if (window.callManager) window.callManager.handleCallOffer(data.offer);
-                break;
-
-            case 'call_answer':
-                // --- WebRTC: Handle call answer ---
-                if (window.callManager) window.callManager.handleCallAnswer(data.answer);
-                break;
-
-            case 'call_hangup':
-                // --- WebRTC: Handle call hangup ---
-                if (window.callManager) window.callManager.handleCallHangup();
-                break;
-
+                
             default:
                 console.warn('Unknown message type:', data.type);
         }
@@ -531,59 +502,18 @@ function handleSocketMessage(event) {
 function handleMatch(data) {
     roomId = data.roomId;
     partnerUsername = data.partnerUsername;
-
+    
     // Show chat screen
     showScreen(chatScreen);
-
-    // Get partner's country first, then display system message
-    if (data.partnerIp) {
-        fetch(`https://ipapi.co/${data.partnerIp}/json/`)
-            .then(response => response.json())
-            .then(ipData => {
-                const countryCode = ipData.country_code?.toUpperCase();
-                const flag = countryFlags[countryCode] || '🌍';
-                displayMessage(`Connected with ${partnerUsername} ${flag}`, null, 'system');
-            })
-            .catch(error => {
-                console.error('Error fetching country:', error);
-                displayMessage(`Connected with ${partnerUsername} 🌍`, null, 'system');
-            });
-    } else {
-        displayMessage(`Connected with ${partnerUsername} 🌍`, null, 'system');
-    }
-
-    // --- WebRTC: Setup CallManager on match ---
-    // Update CallManager with new connection info when a match is made
-    if (window.callManager) {
-        window.callManager.socket = socket;
-        window.callManager.roomId = roomId;
-        window.callManager.currentUser = username;
-        window.callManager.partnerUsername = partnerUsername;
-        updateCallManagerElements();
-    }
-
+    
+    // Display system message about the match
+    displayMessage(`Connected with ${partnerUsername}`, null, 'system');
+    
+    // Clear any previous messages
+    // chatMessages.innerHTML = '';
+    
     // Auto-focus message input
     messageInput.focus();
-}
-
-// Initialize the CallManager
-function initializeCallManager() {
-    if (!window.callManager) {
-        window.callManager = new CallManager();
-    }
-    updateCallManagerElements();
-}
-
-// Update CallManager DOM elements
-function updateCallManagerElements() {
-    if (window.callManager) {
-        window.callManager.callButton = document.getElementById('call-btn');
-        window.callManager.callInterface = document.getElementById('call-interface');
-        window.callManager.callStatus = document.getElementById('call-status');
-        window.callManager.callTimerDisplay = document.getElementById('call-timer');
-        window.callManager.remoteAudio = document.getElementById('remote-audio');
-        window.callManager.localAudio = document.getElementById('local-audio');
-    }
 }
 
 // Handle partner skip
@@ -1011,28 +941,9 @@ function handleSocketMessage(event) {
                 console.log('Login successful, userId:', userId);
                 console.log('Full login success data:', data);
                 
-                // Set verification flag in session storage with a timestamp
-                const authData = {
-                    verified: true,
-                    timestamp: Date.now(),
-                    userId: userId
-                };
-                sessionStorage.setItem('userVerified', 'true');
-                sessionStorage.setItem('authData', JSON.stringify(authData));
-                
-                // Check for redirect URL in session storage
-                const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
-                
-                if (redirectUrl) {
-                    // Clear the redirect URL to prevent loops
-                    sessionStorage.removeItem('redirectAfterLogin');
-                    // Redirect to the originally requested URL
-                    window.location.href = redirectUrl;
-                } else {
-                    // Default to showing waiting screen
-                    showScreen(waitingScreen);
-                    updateWaitingStatus('Waiting for a partner...');
-                }
+                // Show waiting screen
+                showScreen(waitingScreen);
+                updateWaitingStatus('Waiting for a partner...');
                 break;
                 
             case 'login_error':
@@ -1265,8 +1176,7 @@ function sendMessage() {
 function displayMessage(content, sender, type = 'message', timestamp = null) {
     // Create message container
     const messageDiv = document.createElement('div');
-    const isOutgoing = sender === username;
-    messageDiv.className = `message ${type === 'system' ? 'system' : isOutgoing ? 'outgoing' : 'incoming'}`;
+    messageDiv.className = `message ${type === 'system' ? 'system' : sender === username ? 'outgoing' : 'incoming'}`;
     
     if (type === 'system') {
         // System messages are simple text
@@ -1287,16 +1197,19 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
         // Add sender name
         const senderSpan = document.createElement('span');
         senderSpan.className = 'message-sender';
-        senderSpan.textContent = isOutgoing ? `${username}:` : `${sender}:`;
-        
-        // Sender name without flag
-        
+        senderSpan.textContent = sender === username ? `${username}:` : `${sender}:`;
         messageWrapper.appendChild(senderSpan);
         
         // Add message content with glitch effect
         const contentSpan = document.createElement('span');
         contentSpan.className = 'message-content';
-        contentSpan.appendChild(glitchText(content));
+        
+        // Apply glitch effect to the content
+        if (type !== 'system') {
+            contentSpan.appendChild(glitchText(content));
+        } else {
+            contentSpan.textContent = content;
+        }
         
         messageWrapper.appendChild(contentSpan);
         
@@ -1306,9 +1219,6 @@ function displayMessage(content, sender, type = 'message', timestamp = null) {
     
     // Add to chat container
     chatMessages.appendChild(messageDiv);
-    
-    // Ensure the message is visible
-    messageDiv.scrollIntoView({ behavior: 'smooth' });
     
     // Scroll to bottom with a slight delay to ensure rendering is complete
     setTimeout(() => {

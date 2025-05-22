@@ -29,9 +29,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Serve static files from the public directory
-app.use(express.static(path.join(__dirname, 'public')));
-
 // Add headers for WebSocket support
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -40,64 +37,33 @@ app.use((req, res, next) => {
   next();
 });
 
-// Track daily visits
-const dailyVisits = new Map(); // Stores date -> { count, countryStats }
-
 // Middleware to track visitors and their countries
 app.use(async (req, res, next) => {
-  // Only track page views (not API calls or static assets)
-  const isPageView = req.path === '/' || req.path === '/chat';
-  
-  if (isPageView) {
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    
-    // Skip counting if it's your IP
-    if (clientIp && (clientIp.includes('142.112.216.34') || clientIp === '::1' || clientIp === '127.0.0.1')) {
-      return next();
-    }
-    
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Initialize today's stats if not exists
-    if (!dailyVisits.has(today)) {
-      dailyVisits.set(today, { count: 0, countryStats: {} });
-    }
-    
-    const todayStats = dailyVisits.get(today);
-    todayStats.count++;
-    
-    // Track country if IP is available
-    if (IPINFO_TOKEN && clientIp) {
-      try {
-        // Clean IP address
-        let cleanIp = clientIp;
-        if (cleanIp.includes(',')) {
-          cleanIp = cleanIp.split(',')[0].trim();
-        }
-        if (cleanIp.startsWith('::ffff:')) {
-          cleanIp = cleanIp.replace('::ffff:', '');
-        }
-        
-        // Skip local IPs
-        if (cleanIp !== '::1' && cleanIp !== '127.0.0.1') {
-          const url = `https://ipinfo.io/${cleanIp}/json?token=${IPINFO_TOKEN}`;
-          const response = await axios.get(url, { timeout: 2000 });
-          if (response.data?.country) {
-            const country = response.data.country;
-            todayStats.countryStats[country] = (todayStats.countryStats[country] || 0) + 1;
-          }
-        }
-      } catch (error) {
-        // Ignore errors (do not block request)
-        console.error('Error getting country info:', error.message);
-      }
-    }
-    
-    // Update global visitor count (all-time)
+  if (req.path !== '/api/status') {
     visitorCount++;
+    try {
+      // Get client IP
+      let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      if (clientIp && clientIp.includes(',')) {
+        clientIp = clientIp.split(',')[0].trim();
+      }
+      // Remove IPv6 prefix if present
+      if (clientIp && clientIp.startsWith('::ffff:')) {
+        clientIp = clientIp.replace('::ffff:', '');
+      }
+      // Only query if we have a token
+      if (IPINFO_TOKEN && clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') {
+        const url = `https://ipinfo.io/${clientIp}/json?token=${IPINFO_TOKEN}`;
+        const response = await axios.get(url, { timeout: 2000 });
+        if (response.data && response.data.country) {
+          const country = response.data.country;
+          countryStats[country] = (countryStats[country] || 0) + 1;
+        }
+      }
+    } catch (error) {
+      // Ignore errors (do not block request)
+    }
   }
-  
   next();
 });
 
@@ -557,41 +523,6 @@ wss.on('connection', (ws, req) => {
             message: 'Report received. Thank you for helping keep the platform safe.'
           }));
           break;
-        // --- WebRTC signaling support ---
-        case 'call-offer':
-        case 'call-answer':
-        case 'ice-candidate':
-        case 'call-end': {
-          // Find the room and relay to the other user
-          let signalingRoom = null;
-          let signalingPartner = null;
-          if (data.roomId && activeRooms.has(data.roomId)) {
-            signalingRoom = activeRooms.get(data.roomId);
-            signalingPartner = signalingRoom.users.find(u => u.id !== userId);
-          } else {
-            activeRooms.forEach((room) => {
-              if (room.users.some(u => u.id === userId)) {
-                signalingRoom = room;
-                signalingPartner = room.users.find(u => u.id !== userId);
-              }
-            });
-          }
-          if (signalingRoom && signalingPartner) {
-            const partnerConnection = userConnections.get(signalingPartner.id);
-            if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
-              // Relay the signaling message, including all relevant data
-              partnerConnection.send(JSON.stringify({
-                type: data.type,
-                ...(data.offer && { offer: data.offer }),
-                ...(data.answer && { answer: data.answer }),
-                ...(data.candidate && { candidate: data.candidate }),
-                sender: data.username,
-                roomId: data.roomId
-              }));
-            }
-          }
-          break;
-        }
       }
     } catch (error) {
       console.error('Error processing message:', error);
@@ -677,19 +608,13 @@ wss.on('connection', (ws, req) => {
   // ...
 });
 
-// Secret stats endpoint - requires key
+// Secret route for visitor counter with country stats
 app.get('/api/secret-stats', (req, res) => {
   const providedKey = req.query.key;
   if (providedKey === SECRET_KEY) {
-    // Convert Map to object for JSON serialization
-    const dailyVisitsObj = {};
-    for (const [date, stats] of dailyVisits) {
-      dailyVisitsObj[date] = stats;
-    }
-    
     res.json({
       totalVisitors: visitorCount,
-      dailyVisits: dailyVisitsObj,
+      countryStats: countryStats,
       lastUpdated: new Date().toISOString()
     });
   } else {

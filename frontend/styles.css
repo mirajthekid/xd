@@ -1,11 +1,70 @@
-/* Country Flag Styles */
-.country-flag {
-    display: inline-block;
-    margin-left: 5px;
-    vertical-align: middle;
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 2px;
-    box-shadow: 0 0 1px rgba(0,0,0,0.2);
+/* Checkbox styles */
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin: 15px 0;
+    padding-left: 5px;
+}
+
+.shining-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--accent-color);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background-color: rgba(0, 0, 0, 0.2);
+    margin-right: 10px;
+}
+
+.shining-checkbox:checked {
+    background-color: var(--accent-color);
+}
+
+.shining-checkbox::before {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    color: #000;
+    font-weight: bold;
+    font-size: 14px;
+    transition: transform 0.2s ease;
+}
+
+.shining-checkbox:checked::before {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Shining animation */
+@keyframes shine {
+    0% {
+        box-shadow: 0 0 5px rgba(0, 170, 255, 0.5), 0 0 10px rgba(0, 170, 255, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(0, 170, 255, 0.8), 0 0 30px rgba(0, 170, 255, 0.6);
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(0, 170, 255, 0.5), 0 0 10px rgba(0, 170, 255, 0.3);
+    }
+}
+
+.shining-checkbox:not(:checked) {
+    animation: shine 2s infinite;
+}
+
+.checkbox-label {
+    color: var(--text-color);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
 }
 
 /* Base styles */
@@ -185,39 +244,6 @@ body {
     color: var(--text-color);
     margin-right: 10px;
     white-space: nowrap;
-}
-
-#call-btn {
-    position: absolute;
-    right: 60px; /* Position to the left of connection info */
-    top: 12px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 4px;
-    transition: all 0.2s;
-    z-index: 10;
-}
-
-#call-btn:hover, #call-btn:focus {
-    background: rgba(0, 170, 255, 0.2);
-    transform: scale(1.1);
-}
-
-#call-btn svg {
-    width: 22px;
-    height: 22px;
-    color: var(--accent-color);
-    stroke: var(--accent-color);
-    fill: none;
-    vertical-align: middle;
-}
-
-/* Adjust connection info position */
-.connection-info {
-    right: 16px;
-    top: 12px;
 }
 
 /* Input styling */
@@ -408,32 +434,6 @@ body {
     width: 100%;
 }
 
-.login-form {
-    width: 100%;
-    max-width: 300px;
-}
-
-.form-group {
-    margin-bottom: 20px;
-    width: 100%;
-}
-
-.terminal-input {
-    width: 100%;
-    padding: 12px 15px;
-    margin: 8px 0;
-    font-size: 16px;
-    -webkit-appearance: none;
-    border-radius: 4px;
-}
-
-.help-text {
-    display: block;
-    margin-top: 4px;
-    color: var(--notification-color);
-    font-size: 0.8em;
-}
-
 .login-status {
     margin-bottom: 20px;
     color: var(--notification-color);
@@ -494,18 +494,17 @@ body {
 
 .chat-header {
     display: flex;
-    flex-direction: row;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 8px 0 12px 0;
+    align-items: center;
+    padding: 10px 5px 15px;
     border-bottom: 1px solid var(--border-color);
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    flex-shrink: 0;
     width: 100%;
     box-sizing: border-box;
     position: relative;
-    background: transparent;
+    padding-top: 40px; /* Add space for the skip button */
 }
-
 
 .connection-info {
     display: flex;
@@ -542,52 +541,17 @@ body {
     white-space: nowrap;
 }
 
-/* Chat header buttons: skip + call */
-.chat-header-buttons {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 6px;
-    margin: 0 0 0 8px;
-    padding: 0;
-}
-
-
-.chat-header-buttons .terminal-btn.small {
-    margin-right: 0;
-    margin-left: 0;
-    min-width: 36px;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-@media (max-width: 600px) {
-    .chat-header-buttons {
-        gap: 6px;
-        margin-right: 6px;
-    }
-    .chat-header-buttons .terminal-btn.small {
-        min-width: 28px;
-        min-height: 24px;
-        font-size: 0.7rem;
-        padding: 2px 4px;
-    }
-}
-
 /* Chat controls removed as skip button is now in connection-info */
 
 .chat-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 15px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     scrollbar-width: thin;
     scrollbar-color: var(--accent-color) transparent;
-    position: relative;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
