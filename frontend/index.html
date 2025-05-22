@@ -18,6 +18,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        // Check if user is verified when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Only run this check if we're not already on the home page
+            if (window.location.pathname === '/chat' || window.location.pathname.endsWith('chat.html')) {
+                // Check if user is verified (has gone through home page and checkbox)
+                const isVerified = sessionStorage.getItem('userVerified') === 'true';
+                
+                if (!isVerified) {
+                    // Redirect to home page if not verified
+                    window.location.href = '/';
+                }
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="terminal">

@@ -952,6 +952,9 @@ function handleSocketMessage(event) {
                 console.log('Login successful, userId:', userId);
                 console.log('Full login success data:', data);
                 
+                // Set verification flag in session storage
+                sessionStorage.setItem('userVerified', 'true');
+                
                 // Show waiting screen
                 showScreen(waitingScreen);
                 updateWaitingStatus('Waiting for a partner...');
