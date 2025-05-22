@@ -29,35 +29,11 @@
         <!-- Login Screen -->
         <div id="login-screen" class="terminal-screen active">
             <div class="login-container">
-                <h1>Welcome to Chat</h1>
-                <form id="login-form" class="login-form" novalidate>
-                    <div class="form-group">
-                        <label for="username" class="sr-only">Username</label>
-                        <input 
-                            type="text" 
-                            id="username" 
-                            name="username"
-                            placeholder="Enter your username" 
-                            class="terminal-input" 
-                            maxlength="20" 
-                            autocomplete="username"
-                            autocapitalize="none"
-                            autocorrect="off"
-                            required
-                            aria-describedby="username-help"
-                        >
-                        <small id="username-help" class="help-text">2-20 characters</small>
+                    <div class="terminal-prompt-row">
+                        <span class="prompt-text">enter username:</span>
+                        <input type="text" id="username-input" class="terminal-input" maxlength="15" autocomplete="off" placeholder="" inputmode="text" enterkeyhint="go" autofocus>
                     </div>
-                    <button 
-                        type="submit" 
-                        id="login-button" 
-                        class="terminal-btn"
-                        aria-label="Start Chatting"
-                    >
-                        Start Chatting
-                    </button>
-                </form>
-                <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
+                    <div class="login-status" id="login-status"></div>
             </div>
         </div>
         
