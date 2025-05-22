@@ -605,10 +605,34 @@ function handleMatch(data) {
 
 // Initialize the CallManager
 function initializeCallManager() {
-    if (!window.callManager) {
-        window.callManager = new CallManager();
+    console.log('Initializing CallManager...');
+    try {
+        if (!window.callManager) {
+            console.log('Creating new CallManager instance');
+            window.callManager = new CallManager();
+            // Add direct click handler as fallback
+            const callBtn = document.getElementById('call-btn');
+            if (callBtn) {
+                console.log('Adding direct click handler to call button');
+                callBtn.addEventListener('click', function(e) {
+                    console.log('Direct call button click handler triggered');
+                    if (window.callManager && typeof window.callManager.toggleCall === 'function') {
+                        window.callManager.toggleCall();
+                    } else {
+                        console.error('CallManager.toggleCall is not a function');
+                    }
+                });
+            } else {
+                console.error('Call button not found during initialization');
+            }
+        } else {
+            console.log('CallManager already initialized');
+        }
+        updateCallManagerElements();
+        console.log('CallManager initialization complete');
+    } catch (error) {
+        console.error('Error initializing CallManager:', error);
     }
-    updateCallManagerElements();
 }
 
 // Update CallManager DOM elements
