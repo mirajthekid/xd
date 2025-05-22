@@ -187,10 +187,12 @@ body {
     white-space: nowrap;
 }
 
+/* Call button styling */
 #call-btn {
     position: absolute;
-    right: 60px; /* Position to the left of connection info */
-    top: 12px;
+    right: 100px; /* Position to the left of connection info */
+    top: 50%;
+    transform: translateY(-50%);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -198,11 +200,14 @@ body {
     border-radius: 4px;
     transition: all 0.2s;
     z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #call-btn:hover, #call-btn:focus {
     background: rgba(0, 170, 255, 0.2);
-    transform: scale(1.1);
+    transform: translateY(-50%) scale(1.1);
 }
 
 #call-btn svg {
@@ -211,13 +216,31 @@ body {
     color: var(--accent-color);
     stroke: var(--accent-color);
     fill: none;
-    vertical-align: middle;
 }
 
-/* Adjust connection info position to make room for call button */
+/* Adjust connection info position */
 .connection-info {
     right: 16px;
-    top: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Ensure chat header has proper positioning context */
+.chat-header {
+    position: relative;
+    min-height: 50px; /* Ensure header has enough height */
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+    #call-btn {
+        right: 80px;
+        top: 50%;
+    }
+    
+    .connection-info {
+        right: 10px;
+    }
 }
 
 /* Input styling */

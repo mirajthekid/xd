@@ -93,6 +93,11 @@ function preventViewportIssues() {
     }
 }
 
+// Helper function to detect mobile devices
+function isMobileDevice() {
+    return (typeof window.orientation !== "undefined") || (navigator.userAgent.indexOf('IEMobile') !== -1);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Ensure utils is loaded
     if (!window.utils) {
@@ -102,6 +107,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize CallManager when the page loads
     if (document.getElementById('chat-screen')) {
         initializeCallManager();
+    }
+    
+    // Add touch events for mobile
+    if (isMobileDevice()) {
+        console.log('Mobile device detected, adding touch event listeners');
+        const loginForm = document.getElementById('login-form');
+        const usernameInput = document.getElementById('username');
+        const loginButton = document.getElementById('login-button');
+        
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                handleLogin();
+            });
+        }
+        
+        if (loginButton) {
+            // Add touch event for mobile
+            loginButton.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                handleLogin();
+            });
+        }
+        
+        // Focus the input on mobile when the page loads
+        if (usernameInput) {
+            usernameInput.focus();
+            // Ensure virtual keyboard shows up on mobile
+            setTimeout(() => {
+                usernameInput.focus();
+            }, 100);
+        }
     }
     // Apply mobile viewport fixes
     preventViewportIssues();
@@ -860,25 +897,43 @@ function connectToServer() {
 
 // Handle login
 function handleLogin() {
-    // Get and validate username
+    console.log('Login attempt started');
+    const usernameInput = document.getElementById('username');
+    const loginStatus = document.getElementById('login-status');
+    
+    if (!usernameInput || !loginStatus) {
+        console.error('Required login elements not found');
+        return;
+    }
+    
     username = usernameInput.value.trim();
-    console.log(`Login attempt with username: ${username}`);
     
     if (!username) {
         loginStatus.textContent = 'Please enter a username';
         loginStatus.style.color = 'var(--error-color)';
+        usernameInput.focus();
+        console.log('Login failed: No username provided');
         return;
     }
     
-    if (username.length < 3) {
-        loginStatus.textContent = 'Username must be at least 3 characters';
+    // Basic validation
+    if (username.length < 2 || username.length > 20) {
+        loginStatus.textContent = 'Username must be between 2-20 characters';
         loginStatus.style.color = 'var(--error-color)';
+        usernameInput.focus();
+        console.log('Login failed: Invalid username length');
         return;
     }
     
-    // Update UI to show we're connecting
     loginStatus.textContent = 'Connecting to server...';
     loginStatus.style.color = 'var(--notification-color)';
+    
+    // Blur the input to hide the keyboard on mobile
+    if (isMobileDevice()) {
+        usernameInput.blur();
+    }
+    
+    console.log('Attempting to connect with username:', username);
     console.log(`WebSocket URL: ${WS_URL}`);
     
     // Close any existing connection
