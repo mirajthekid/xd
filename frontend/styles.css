@@ -189,26 +189,35 @@ body {
 
 #call-btn {
     position: absolute;
-    left: 10px;
-    top: -100px;
+    right: 60px; /* Position to the left of connection info */
+    top: 12px;
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border-radius: 4px;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    z-index: 10;
 }
 
 #call-btn:hover, #call-btn:focus {
-    background: rgba(0, 170, 255, 0.1);
+    background: rgba(0, 170, 255, 0.2);
+    transform: scale(1.1);
 }
 
 #call-btn svg {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     color: var(--accent-color);
     stroke: var(--accent-color);
     fill: none;
+    vertical-align: middle;
+}
+
+/* Adjust connection info position to make room for call button */
+.connection-info {
+    right: 16px;
+    top: 12px;
 }
 
 /* Input styling */
