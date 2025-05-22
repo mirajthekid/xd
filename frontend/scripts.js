@@ -486,17 +486,34 @@ function handleSocketMessage(event) {
                     }
                 }
                 break;
-                
+
             case 'skip_notification':
                 // Handle skip notification from partner
                 handlePartnerSkip(data.username);
+                // --- WebRTC: Cleanup call on skip ---
+                if (window.callManager) window.callManager.endCallCleanup();
                 break;
-                
+
             case 'system':
                 // Display system message
                 displayMessage(data.content, null, 'system', data.timestamp);
                 break;
-                
+
+            case 'call_offer':
+                // --- WebRTC: Handle call offer ---
+                if (window.callManager) window.callManager.handleCallOffer(data.offer);
+                break;
+
+            case 'call_answer':
+                // --- WebRTC: Handle call answer ---
+                if (window.callManager) window.callManager.handleCallAnswer(data.answer);
+                break;
+
+            case 'call_hangup':
+                // --- WebRTC: Handle call hangup ---
+                if (window.callManager) window.callManager.handleCallHangup();
+                break;
+
             default:
                 console.warn('Unknown message type:', data.type);
         }
@@ -509,10 +526,10 @@ function handleSocketMessage(event) {
 function handleMatch(data) {
     roomId = data.roomId;
     partnerUsername = data.partnerUsername;
-    
+
     // Show chat screen
     showScreen(chatScreen);
-    
+
     // Get partner's country first, then display system message
     if (data.partnerIp) {
         fetch(`https://ipapi.co/${data.partnerIp}/json/`)
@@ -529,7 +546,22 @@ function handleMatch(data) {
     } else {
         displayMessage(`Connected with ${partnerUsername} 🌍`, null, 'system');
     }
-    
+
+    // --- WebRTC: Setup CallManager on match ---
+    if (!window.callManager) {
+        window.callManager = new CallManager();
+    }
+    window.callManager.socket = socket;
+    window.callManager.roomId = roomId;
+    window.callManager.currentUser = username;
+    window.callManager.partnerUsername = partnerUsername;
+    window.callManager.callButton = document.getElementById('call-btn');
+    window.callManager.callInterface = document.getElementById('call-interface');
+    window.callManager.callStatus = document.getElementById('call-status');
+    window.callManager.callTimerDisplay = document.getElementById('call-timer');
+    window.callManager.remoteAudio = document.getElementById('remote-audio');
+    window.callManager.localAudio = document.getElementById('local-audio');
+
     // Auto-focus message input
     messageInput.focus();
 }

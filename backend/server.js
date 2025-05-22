@@ -557,6 +557,41 @@ wss.on('connection', (ws, req) => {
             message: 'Report received. Thank you for helping keep the platform safe.'
           }));
           break;
+        // --- WebRTC signaling support ---
+        case 'call-offer':
+        case 'call-answer':
+        case 'ice-candidate':
+        case 'call-end': {
+          // Find the room and relay to the other user
+          let signalingRoom = null;
+          let signalingPartner = null;
+          if (data.roomId && activeRooms.has(data.roomId)) {
+            signalingRoom = activeRooms.get(data.roomId);
+            signalingPartner = signalingRoom.users.find(u => u.id !== userId);
+          } else {
+            activeRooms.forEach((room) => {
+              if (room.users.some(u => u.id === userId)) {
+                signalingRoom = room;
+                signalingPartner = room.users.find(u => u.id !== userId);
+              }
+            });
+          }
+          if (signalingRoom && signalingPartner) {
+            const partnerConnection = userConnections.get(signalingPartner.id);
+            if (partnerConnection && partnerConnection.readyState === WebSocket.OPEN) {
+              // Relay the signaling message, including all relevant data
+              partnerConnection.send(JSON.stringify({
+                type: data.type,
+                ...(data.offer && { offer: data.offer }),
+                ...(data.answer && { answer: data.answer }),
+                ...(data.candidate && { candidate: data.candidate }),
+                sender: data.username,
+                roomId: data.roomId
+              }));
+            }
+          }
+          break;
+        }
       }
     } catch (error) {
       console.error('Error processing message:', error);

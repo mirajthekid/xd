@@ -1,11 +1,6 @@
 // Call functionality for the chat application
 class CallManager {
     constructor() {
-        // Only initialize if we're on the chat screen
-        if (!document.getElementById('chat-screen')) {
-            return;
-        }
-        
         this.localStream = null;
         this.peerConnection = null;
         this.callButton = document.getElementById('call-btn');
@@ -75,24 +70,60 @@ class CallManager {
 
     async startCall() {
         try {
+            // --- WebRTC logic start ---
             this.isCalling = true;
             this.callButton.classList.add('active');
             this.callStatus.textContent = 'Calling...';
             this.callInterface.classList.add('active');
-            
-            // Get user media
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: false
+
+            // Peer connection config
+            if (this.peerConnection) this.peerConnection.close();
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' }
+                ]
             });
-            
-            // Play local audio (muted)
+
+            // ICE candidate handler
+            this.peerConnection.onicecandidate = (event) => {
+                if (event.candidate && this.socket && this.roomId && this.partnerUsername) {
+                    this.socket.send(JSON.stringify({
+                        type: 'ice-candidate',
+                        candidate: event.candidate,
+                        roomId: this.roomId,
+                        recipient: this.partnerUsername
+                    }));
+                }
+            };
+
+            // Remote media handler
+            this.peerConnection.ontrack = (event) => {
+                if (this.remoteAudio && this.remoteAudio.srcObject !== event.streams[0]) {
+                    this.remoteAudio.srcObject = event.streams[0];
+                    this.remoteAudio.play().catch(e => console.error('Error playing remote audio:', e));
+                }
+            };
+
+            // Get user media
+            this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             this.localAudio.srcObject = this.localStream;
-            
-            // In a real app, you would create a peer connection and send an offer
-            // For now, we'll just simulate a call
-            this.simulateIncomingCall();
-            
+            this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
+
+            // Create and send offer
+            const offer = await this.peerConnection.createOffer();
+            await this.peerConnection.setLocalDescription(offer);
+            if (this.socket && this.roomId && this.partnerUsername) {
+                this.socket.send(JSON.stringify({
+                    type: 'call-offer',
+                    offer: offer,
+                    roomId: this.roomId,
+                    recipient: this.partnerUsername
+                }));
+                this.isCalling = true;
+                this.callStatus.textContent = 'Calling ' + this.partnerUsername + '...';
+                this.callInterface.classList.add('active');
+            }
+            // --- WebRTC logic end ---
         } catch (error) {
             console.error('Error starting call:', error);
             this.callStatus.textContent = 'Failed to start call';
@@ -100,45 +131,114 @@ class CallManager {
         }
     }
 
-    simulateIncomingCall() {
-        // Simulate the other user accepting the call after 2 seconds
-        setTimeout(() => {
-            if (this.isCalling) {
-                this.acceptCall();
+    // WebRTC: Remove simulateIncomingCall and acceptCall, replaced by handleCallOffer/handleCallAnswer
+    // --- WebRTC logic for offer/answer/candidate ---
+    async handleCallOffer(offerData) {
+        try {
+            if (this.peerConnection) this.peerConnection.close();
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' }
+                ]
+            });
+            this.peerConnection.onicecandidate = (event) => {
+                if (event.candidate && this.socket && this.roomId && this.partnerUsername) {
+                    this.socket.send(JSON.stringify({
+                        type: 'ice-candidate',
+                        candidate: event.candidate,
+                        roomId: this.roomId,
+                        recipient: this.partnerUsername
+                    }));
+                }
+            };
+            this.peerConnection.ontrack = (event) => {
+                if (this.remoteAudio && this.remoteAudio.srcObject !== event.streams[0]) {
+                    this.remoteAudio.srcObject = event.streams[0];
+                    this.remoteAudio.play().catch(e => console.error('Error playing remote audio:', e));
+                }
+            };
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerData.offer));
+            if (!this.localStream) {
+                this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                this.localAudio.srcObject = this.localStream;
+                this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
             }
-        }, 2000);
+            const answer = await this.peerConnection.createAnswer();
+            await this.peerConnection.setLocalDescription(answer);
+            this.socket.send(JSON.stringify({
+                type: 'call-answer',
+                answer: answer,
+                roomId: this.roomId,
+                recipient: this.partnerUsername
+            }));
+            this.isInCall = true;
+            this.isCalling = false;
+            this.callStatus.textContent = 'In call with ' + this.partnerUsername;
+            this.callStartTime = Date.now();
+            this.startCallTimer();
+        } catch (error) {
+            this.callStatus.textContent = 'Error handling call offer';
+            this.endCall();
+            console.error(error);
+        }
     }
 
-    acceptCall() {
-        this.isCalling = false;
-        this.isInCall = true;
-        this.callStatus.textContent = 'In call';
-        this.callStartTime = Date.now();
-        this.startCallTimer();
-        
-        // In a real app, you would handle the WebRTC connection here
-        // For now, we'll just play a test tone on the remote audio
-        this.playTestTone();
+    async handleCallAnswer(answerData) {
+        try {
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answerData.answer));
+            this.isInCall = true;
+            this.isCalling = false;
+            this.callStatus.textContent = 'In call with ' + this.partnerUsername;
+            this.callStartTime = Date.now();
+            this.startCallTimer();
+        } catch (error) {
+            this.callStatus.textContent = 'Error connecting call';
+            this.endCall();
+            console.error(error);
+        }
+    }
+
+    async handleIceCandidate(candidateData) {
+        try {
+            await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidateData.candidate));
+        } catch (error) {
+            console.error('Error adding ICE candidate:', error);
+        }
     }
 
     endCall() {
-        // Stop all media tracks
+        if (this.socket && this.roomId && this.partnerUsername && (this.isInCall || this.isCalling)) {
+            this.socket.send(JSON.stringify({
+                type: 'call-end',
+                roomId: this.roomId,
+                recipient: this.partnerUsername
+            }));
+        }
+        this.endCallCleanup();
+    }
+
+    endCallCleanup() {
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
         }
-        
-        // Reset UI
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
+        }
         this.isCalling = false;
         this.isInCall = false;
-        this.callButton.classList.remove('active');
-        this.callInterface.classList.remove('active');
-        clearInterval(this.callTimer);
-        
-        // In a real app, you would close the peer connection here
-        
-        // Reset call timer
-        this.callTimer.textContent = '00:00';
+        if (this.callButton) this.callButton.classList.remove('active');
+        if (this.callInterface) this.callInterface.classList.remove('active');
+        if (this.callTimer) clearInterval(this.callTimer);
+        if (this.callTimer) this.callTimer.textContent = '00:00';
+        if (this.remoteAudio) this.remoteAudio.srcObject = null;
+        if (this.localAudio) this.localAudio.srcObject = null;
+        if (this.callStatus) this.callStatus.textContent = 'Call ended';
+    }
+
+    handleCallEndSignal() {
+        this.endCallCleanup();
     }
 
     startCallTimer() {
@@ -152,57 +252,38 @@ class CallManager {
         }, 1000);
     }
 
-    playTestTone() {
-        // This is just for demonstration
-        // In a real app, you would use WebRTC to stream audio
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.start();
-        
-        // Stop the tone after 100ms (just a beep)
-        setTimeout(() => {
-            oscillator.stop();
-        }, 100);
-    }
+
 
     handleWebSocketMessage(message) {
-        // In a real app, you would handle WebSocket messages for call signaling here
-        // For example: call offers, answers, ICE candidates, etc.
-        console.log('Call WebSocket message:', message);
-        
-        // Example:
-        // if (message.type === 'call-offer') {
-        //     this.handleCallOffer(message);
-        // } else if (message.type === 'call-answer') {
-        //     this.handleCallAnswer(message);
-        // } else if (message.type === 'ice-candidate') {
-        //     this.handleICECandidate(message);
-        // } else if (message.type === 'call-end') {
-        //     this.endCall();
-        // }
+        // WebRTC signaling message routing
+        switch (message.type) {
+            case 'call-offer':
+                this.handleCallOffer(message);
+                break;
+            case 'call-answer':
+                this.handleCallAnswer(message);
+                break;
+            case 'ice-candidate':
+                this.handleIceCandidate(message);
+                break;
+            case 'call-end':
+                this.handleCallEndSignal();
+                break;
+            case 'call-error':
+                if (this.callStatus) this.callStatus.textContent = message.message;
+                setTimeout(() => this.endCallCleanup(), 3000);
+                break;
+            default:
+                // Other message types can be handled elsewhere
+                break;
+        }
     }
 }
 
 // Initialize call manager when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Only initialize if we're on the chat screen and not already initialized
-    if (document.getElementById('chat-screen') && !window.callManager) {
-        window.callManager = new CallManager();
-    }
-});
-
-// Re-initialize when showing chat screen
-document.addEventListener('screenChanged', (e) => {
-    if (e.detail.screen === 'chat-screen' && !window.callManager) {
+    // Only initialize if we're on the chat screen
+    if (document.getElementById('chat-screen')) {
         window.callManager = new CallManager();
     }
 });
