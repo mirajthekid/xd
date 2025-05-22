@@ -98,6 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!window.utils) {
         console.error('Utils module not loaded. Some security features may not work.');
     }
+    
+    // Initialize CallManager when the page loads
+    if (document.getElementById('chat-screen')) {
+        initializeCallManager();
+    }
     // Apply mobile viewport fixes
     preventViewportIssues();
     
@@ -548,22 +553,37 @@ function handleMatch(data) {
     }
 
     // --- WebRTC: Setup CallManager on match ---
-    if (!window.callManager) {
-        window.callManager = new CallManager();
+    // Update CallManager with new connection info when a match is made
+    if (window.callManager) {
+        window.callManager.socket = socket;
+        window.callManager.roomId = roomId;
+        window.callManager.currentUser = username;
+        window.callManager.partnerUsername = partnerUsername;
+        updateCallManagerElements();
     }
-    window.callManager.socket = socket;
-    window.callManager.roomId = roomId;
-    window.callManager.currentUser = username;
-    window.callManager.partnerUsername = partnerUsername;
-    window.callManager.callButton = document.getElementById('call-btn');
-    window.callManager.callInterface = document.getElementById('call-interface');
-    window.callManager.callStatus = document.getElementById('call-status');
-    window.callManager.callTimerDisplay = document.getElementById('call-timer');
-    window.callManager.remoteAudio = document.getElementById('remote-audio');
-    window.callManager.localAudio = document.getElementById('local-audio');
 
     // Auto-focus message input
     messageInput.focus();
+}
+
+// Initialize the CallManager
+function initializeCallManager() {
+    if (!window.callManager) {
+        window.callManager = new CallManager();
+    }
+    updateCallManagerElements();
+}
+
+// Update CallManager DOM elements
+function updateCallManagerElements() {
+    if (window.callManager) {
+        window.callManager.callButton = document.getElementById('call-btn');
+        window.callManager.callInterface = document.getElementById('call-interface');
+        window.callManager.callStatus = document.getElementById('call-status');
+        window.callManager.callTimerDisplay = document.getElementById('call-timer');
+        window.callManager.remoteAudio = document.getElementById('remote-audio');
+        window.callManager.localAudio = document.getElementById('local-audio');
+    }
 }
 
 // Handle partner skip
