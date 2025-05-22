@@ -199,6 +199,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Override showScreen function to add chat input when needed
     window.originalShowScreen = window.showScreen;
     window.showScreen = function(screen) {
+        // Check if trying to show chat screen without authentication
+        if (screen === chatScreen && sessionStorage.getItem('userVerified') !== 'true') {
+            // Store the attempted action for after login
+            sessionStorage.setItem('pendingScreen', 'chat');
+            // Show login screen instead
+            screen = loginScreen;
+        }
+        
         // Call original function
         if (window.originalShowScreen) {
             window.originalShowScreen(screen);
@@ -955,9 +963,18 @@ function handleSocketMessage(event) {
                 // Set verification flag in session storage
                 sessionStorage.setItem('userVerified', 'true');
                 
-                // Show waiting screen
-                showScreen(waitingScreen);
-                updateWaitingStatus('Waiting for a partner...');
+                // Check for pending screen redirect
+                const pendingScreen = sessionStorage.getItem('pendingScreen');
+                if (pendingScreen === 'chat') {
+                    sessionStorage.removeItem('pendingScreen');
+                    // Show waiting screen for chat
+                    showScreen(waitingScreen);
+                    updateWaitingStatus('Waiting for a partner...');
+                } else {
+                    // Default to waiting screen
+                    showScreen(waitingScreen);
+                    updateWaitingStatus('Waiting for a partner...');
+                }
                 break;
                 
             case 'login_error':
