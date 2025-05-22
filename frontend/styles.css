@@ -435,17 +435,18 @@ body {
 
 .chat-header {
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
-    align-items: center;
-    padding: 10px 5px 15px;
+    align-items: flex-start;
+    padding: 8px 0 12px 0;
     border-bottom: 1px solid var(--border-color);
-    margin-bottom: 15px;
-    flex-shrink: 0;
+    margin-bottom: 10px;
     width: 100%;
     box-sizing: border-box;
     position: relative;
-    padding-top: 40px; /* Add space for the skip button */
+    background: transparent;
 }
+
 
 .connection-info {
     display: flex;
@@ -486,10 +487,12 @@ body {
 .chat-header-buttons {
     display: flex;
     flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    margin-right: 16px;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0 0 0 8px;
+    padding: 0;
 }
+
 
 .chat-header-buttons .terminal-btn.small {
     margin-right: 0;
