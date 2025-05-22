@@ -1,6 +1,11 @@
 // Call functionality for the chat application
 class CallManager {
     constructor() {
+        // Only initialize if we're on the chat screen
+        if (!document.getElementById('chat-screen')) {
+            return;
+        }
+        
         this.localStream = null;
         this.peerConnection = null;
         this.callButton = document.getElementById('call-btn');
@@ -189,8 +194,15 @@ class CallManager {
 
 // Initialize call manager when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Only initialize if we're on the chat screen
-    if (document.getElementById('chat-screen')) {
+    // Only initialize if we're on the chat screen and not already initialized
+    if (document.getElementById('chat-screen') && !window.callManager) {
+        window.callManager = new CallManager();
+    }
+});
+
+// Re-initialize when showing chat screen
+document.addEventListener('screenChanged', (e) => {
+    if (e.detail.screen === 'chat-screen' && !window.callManager) {
         window.callManager = new CallManager();
     }
 });
