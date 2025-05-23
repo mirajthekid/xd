@@ -59,16 +59,24 @@ class VoiceCallManager {
         this.ws.addEventListener('message', async (event) => {
             try {
                 const data = JSON.parse(event.data);
+                console.log('Received WebSocket message:', data);
                 
                 switch (data.type) {
-                    case 'call_offer':
-                        await this.handleCallOffer(data.offer);
+                    case 'call_initiate':
+                        // Start the call when receiving call_initiate
+                        await this.answerCall();
                         break;
-                    case 'call_answer':
-                        await this.handleCallAnswer(data.answer);
-                        break;
-                    case 'ice_candidate':
-                        await this.handleICECandidate(data.candidate);
+                    case 'call_signal':
+                        // Handle WebRTC signaling
+                        if (data.signal) {
+                            if (data.signal.type === 'offer') {
+                                await this.handleCallOffer(data.signal);
+                            } else if (data.signal.type === 'answer') {
+                                await this.handleCallAnswer(data.signal);
+                            } else if (data.signal.candidate) {
+                                await this.handleICECandidate(data.signal);
+                            }
+                        }
                         break;
                     case 'call_end':
                         this.handleCallEnd();
@@ -110,36 +118,58 @@ class VoiceCallManager {
     
     // Handle call offer from remote peer
     async handleCallOffer(offer) {
-        if (this.isInCall) return;
+        if (this.isInCall) {
+            console.log('Already in a call, ignoring offer');
+            return;
+        }
+        
+        console.log('Handling call offer:', offer);
         
         try {
             this.isCaller = false;
             this.isInCall = true;
             this.updateUI();
             
-            // Get local media stream
-            this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: true, 
-                video: false 
+            // Get local media stream if not already available
+            if (!this.localStream) {
+                this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: true, 
+                    video: false 
+                });
+                console.log('Obtained local media stream for answering call');
+            }
+            
+            // Create peer connection if not already created
+            if (!this.peer) {
+                await this.setupPeerConnection();
+            }
+            
+            // Set remote description
+            console.log('Setting remote description with offer');
+            await this.peer.setRemoteDescription(new RTCSessionDescription(offer));
+            
+            // Create and set local description (answer)
+            console.log('Creating answer');
+            const answer = await this.peer.createAnswer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: false
             });
             
-            // Create peer connection
-            await this.setupPeerConnection();
-            
-            // Set remote description and create answer
-            await this.peer.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await this.peer.createAnswer();
+            console.log('Setting local description with answer');
             await this.peer.setLocalDescription(answer);
             
-            // Send answer to caller
-            this.sendSignal({
-                type: 'call_answer',
-                answer: answer
-            });
+            // The answer will be sent through the onicecandidate handler
             
         } catch (error) {
             console.error('Error handling call offer:', error);
             this.cleanupCall();
+            this.updateUI();
+            
+            // Notify the other peer about the error
+            this.sendSignal({
+                type: 'error',
+                message: 'Failed to handle call offer: ' + error.message
+            });
         }
     }
     
@@ -226,22 +256,82 @@ class VoiceCallManager {
             return;
         }
         
-        const message = {
-            ...data,
-            roomId: this.currentRoomId
-        };
+        try {
+            const message = {
+                type: 'call_signal',
+                roomId: this.currentRoomId,
+                signal: data
+            };
+            
+            console.log('Sending WebSocket message:', message);
+            this.ws.send(JSON.stringify(message));
+        } catch (error) {
+            console.error('Error sending WebSocket message:', error);
+        }
+    }
+    
+    // Answer an incoming call
+    async answerCall() {
+        if (this.isInCall) {
+            console.log('Already in a call, cannot answer another');
+            return;
+        }
         
-        this.ws.send(JSON.stringify(message));
+        try {
+            console.log('Answering call...');
+            this.isCaller = false;
+            this.isInCall = true;
+            this.updateUI();
+            
+            // Get local media stream
+            this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true, 
+                video: false 
+            });
+            
+            console.log('Local media stream obtained');
+            
+            // Create peer connection
+            await this.setupPeerConnection();
+            
+            // The offer will be handled by the signal handler
+            
+        } catch (error) {
+            console.error('Error answering call:', error);
+            this.cleanupCall();
+            this.updateUI();
+            
+            // Notify the other peer about the error
+            this.sendSignal({
+                type: 'error',
+                message: 'Failed to answer call'
+            });
+        }
     }
     
     // Initiate a call
     async initiateCall() {
-        if (this.isInCall) return;
+        if (this.isInCall || !this.currentRoomId) {
+            console.log('Already in call or no room ID');
+            return;
+        }
         
         try {
             this.isCaller = true;
             this.isInCall = true;
             this.updateUI();
+            
+            console.log('Initiating call in room:', this.currentRoomId);
+            
+            // First, send call initiation to server
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'call_initiate',
+                    roomId: this.currentRoomId
+                };
+                console.log('Sending call_initiate:', message);
+                this.ws.send(JSON.stringify(message));
+            }
             
             // Get local media stream
             this.localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -253,18 +343,19 @@ class VoiceCallManager {
             await this.setupPeerConnection();
             
             // Create and set local description
-            const offer = await this.peer.createOffer();
+            const offer = await this.peer.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: false
+            });
+            
             await this.peer.setLocalDescription(offer);
             
-            // Send offer to other peer
-            this.sendSignal({
-                type: 'call_offer',
-                offer: offer
-            });
+            // The offer will be sent through the onicecandidate handler
             
         } catch (error) {
             console.error('Error initiating call:', error);
             this.cleanupCall();
+            this.updateUI();
         }
     }
     
