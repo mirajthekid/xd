@@ -8,290 +8,303 @@ class VoiceCallManager {
         this.isInCall = false;
         this.currentRoomId = null;
         this.isMuted = false;
+        this.ws = null;
+        this.callTimeout = null;
         
-        // DOM Elements
-        this.callBtn = document.getElementById('call-btn');
-        this.callOverlay = document.getElementById('call-overlay');
-        this.callStatus = document.getElementById('call-status');
-        this.muteBtn = document.getElementById('mute-btn');
-        this.endCallBtn = document.getElementById('end-call-btn');
+        // Initialize DOM elements
+        this.initializeDOMElements();
         
         // Bind methods
+        this.init = this.init.bind(this);
+        this.initializeDOMElements = this.initializeDOMElements.bind(this);
         this.initiateCall = this.initiateCall.bind(this);
-        this.toggleMute = this.toggleMute.bind(this);
-        this.endCall = this.endCall.bind(this);
         this.answerCall = this.answerCall.bind(this);
+        this.endCall = this.endCall.bind(this);
+        this.toggleMute = this.toggleMute.bind(this);
+        this.cleanupCall = this.cleanupCall.bind(this);
+        this.updateUI = this.updateUI.bind(this);
+        this.sendSignal = this.sendSignal.bind(this);
         this.handleSignal = this.handleSignal.bind(this);
-        this.createPeerConnection = this.createPeerConnection.bind(this);
+        this.setupPeerConnection = this.setupPeerConnection.bind(this);
         
-        // Initialize event listeners
-        this.initializeEventListeners();
+        // Initialize
+        this.init();
     }
     
-    initializeEventListeners() {
-        if (this.callBtn) {
-            this.callBtn.addEventListener('click', this.initiateCall);
-        }
-        if (this.muteBtn) {
-            this.muteBtn.addEventListener('click', this.toggleMute);
-        }
-        if (this.endCallBtn) {
-            this.endCallBtn.addEventListener('click', this.endCall);
-        }
-        window.addEventListener('beforeunload', () => this.isInCall && this.endCall());
-    }
-    
-    // Set the current room ID
-    setRoom(roomId) {
-        this.currentRoomId = roomId;
-        this.updateCallButtonState();
-    }
-    
-    // Update call button state based on current room and call status
-    updateCallButtonState() {
-        if (!this.callBtn) return;
-        this.callBtn.disabled = !!(this.isInCall || !this.currentRoomId);
-    }
-    
-    // Check if we're in a secure context (HTTPS or localhost)
-    isSecureContext() {
-        return window.isSecureContext || 
-               window.location.hostname === 'localhost' || 
-               window.location.hostname === '127.0.0.1';
-    }
-    
-    // Show error message to the user
-    showCallError(message) {
-        console.error('Call error:', message);
-        if (this.callStatus) {
-            this.callStatus.textContent = `Error: ${message}`;
-        }
-        setTimeout(() => this.hideCallInterface(), 3000);
-    }
-    
-    // Show the call interface
-    showCallInterface(status = '') {
-        if (this.callOverlay && this.callStatus) {
-            this.callStatus.textContent = status;
-            this.callOverlay.classList.remove('hidden');
-        }
-    }
-    
-    // Hide the call interface
-    hideCallInterface() {
-        if (this.callOverlay) {
-            this.callOverlay.classList.add('hidden');
-        }
-    }
-    
-    // Update call status text
-    updateCallStatus(status) {
-        if (this.callStatus) {
-            this.callStatus.textContent = status;
-        }
-    }    // Create a new peer connection
-        createPeerConnection() {
-            if (!window.SimplePeer) {
-                console.error('SimplePeer not loaded');
-                return;
-            }
-    
-            const config = {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-            };
-            
-            this.peer = new SimplePeer({
-                initiator: this.isCaller,
-                trickle: true,
-                config: config
-            });
-            
-            this.peer.on('signal', (data) => {
-                if (data.type === 'offer' || data.type === 'answer') {
-                    this.sendWebSocketMessage({
-                        type: 'call_signal',
-                        roomId: this.currentRoomId,
-                        signal: data
-                    });
-                }
-            });
-            
-            this.peer.on('stream', (stream) => {
-                this.remoteAudio = new Audio();
-                this.remoteAudio.srcObject = stream;
-                this.remoteAudio.autoplay = true;
-                this.updateCallStatus('Connected');
-            });
-            
-            this.peer.on('connect', () => {
-                console.log('WebRTC connected');
-                this.updateCallStatus('Connected');
-            });
-            
-            this.peer.on('close', () => this.endCall());
-            this.peer.on('error', (err) => {
-                console.error('WebRTC error:', err);
-                this.handleCallError(err);
-            });
-        }
+    // Initialize DOM elements
+    initializeDOMElements() {
+        this.callButton = document.getElementById('call-button');
+        this.endCallButton = document.getElementById('end-call-button');
+        this.muteButton = document.getElementById('mute-button');
+        this.callStatus = document.getElementById('call-status');
+        this.remoteAudio = document.getElementById('remote-audio');
         
-        // Handle incoming WebRTC signal
-        handleSignal(signal) {
-            if (this.peer) {
-                this.peer.signal(signal);
-            }
-        }
+        // Add event listeners
+        if (this.callButton) this.callButton.addEventListener('click', this.initiateCall);
+        if (this.endCallButton) this.endCallButton.addEventListener('click', this.endCall);
+        if (this.muteButton) this.muteButton.addEventListener('click', this.toggleMute);
+    }
+    
+    // Initialize the voice call manager
+    init() {
+        this.ws = window.ws || new WebSocket('wss://yourserver.com/ws');
+        this.setupWebSocketHandlers();
+        this.updateUI();
+    }
+    
+    // Set up WebSocket message handlers
+    setupWebSocketHandlers() {
+        if (!this.ws) return;
         
-        // Handle call errors
-        handleCallError(error) {
-            let errorMessage = 'Call failed';
-            if (error.name === 'NotAllowedError') {
-                errorMessage = 'Microphone access was denied';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage = 'No microphone found';
-            } else if (error.name === 'NotReadableError') {
-                errorMessage = 'Microphone is already in use';
-            }
-            this.showCallError(errorMessage);
-        }    // Initiate a new call
-            async initiateCall() {
-                if (this.isInCall || !this.currentRoomId) return;
+        this.ws.addEventListener('message', async (event) => {
+            try {
+                const data = JSON.parse(event.data);
                 
-                if (!this.isSecureContext()) {
-                    this.showCallError('Voice calls require a secure connection (HTTPS)');
-                    return;
+                switch (data.type) {
+                    case 'call_offer':
+                        await this.handleCallOffer(data.offer);
+                        break;
+                    case 'call_answer':
+                        await this.handleCallAnswer(data.answer);
+                        break;
+                    case 'ice_candidate':
+                        await this.handleICECandidate(data.candidate);
+                        break;
+                    case 'call_end':
+                        this.handleCallEnd();
+                        break;
                 }
-                
-                try {
-                    this.updateCallStatus('Requesting microphone...');
-                    this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true
-                        } 
-                    });
-                    
-                    this.isCaller = true;
-                    this.isInCall = true;
-                    this.isMuted = false;
-                    
-                    this.showCallInterface('Calling...');
-                    this.createPeerConnection();
-                    
-                    // Add local stream to peer connection
-                    this.localStream.getTracks().forEach(track => {
-                        this.peer.addTrack(track, this.localStream);
-                    });
-                    
-                    this.sendWebSocketMessage({
-                        type: 'call_initiate',
-                        roomId: this.currentRoomId
-                    });
-                    
-                } catch (error) {
-                    console.error('Call error:', error);
-                    this.handleCallError(error);
-                }
+            } catch (error) {
+                console.error('Error handling WebSocket message:', error);
             }
-            
-            // Handle incoming call
-            handleIncomingCall() {
-                if (this.isInCall || !this.currentRoomId) return;
-                this.isCaller = false;
-                this.isInCall = true;
-                this.showCallInterface('Incoming call...');
-            }
-            
-            // Answer an incoming call
-            async answerCall() {
-                if (!this.isInCall || this.isCaller) return;
-                
-                try {
-                    this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: true 
-                    });
-                    
-                    this.createPeerConnection();
-                    this.localStream.getTracks().forEach(track => {
-                        this.peer.addTrack(track, this.localStream);
-                    });
-                    
-                    this.updateCallStatus('Connected');
-                } catch (error) {
-                    console.error('Answer call error:', error);
-                    this.handleCallError(error);
-                }
-            }
-            
-            // Toggle mute state
-            toggleMute() {
-                if (!this.localStream) return;
-                this.isMuted = !this.isMuted;
-                this.localStream.getAudioTracks().forEach(track => {
-                    track.enabled = !this.isMuted;
-                });
-                if (this.muteBtn) {
-                    this.muteBtn.textContent = this.isMuted ? 'Unmute' : 'Mute';
-                }
-            }
-            
-            // End the current call
-            endCall() {
-                if (this.isInCall) {
-                    this.sendWebSocketMessage({
-                        type: 'call_end',
-                        roomId: this.currentRoomId
-                    });
-                }
-                this.cleanupCall();
-                this.hideCallInterface();
-            }
-            
-            // Clean up call resources
-            cleanupCall() {
-                if (this.localStream) {
-                    this.localStream.getTracks().forEach(track => track.stop());
-                    this.localStream = null;
-                }
-                if (this.remoteAudio) {
-                    this.remoteAudio.pause();
-                    this.remoteAudio = null;
-                }
-                if (this.peer) {
-                    this.peer.destroy();
-                    this.peer = null;
-                }
-                this.isInCall = false;
-                this.isCaller = false;
-                this.isMuted = false;
-                this.updateCallButtonState();
-            }
-            
-            // Send a WebSocket message
-            sendWebSocketMessage(message) {
-                if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-                    window.ws.send(JSON.stringify(message));
-                } else {
-                    console.error('WebSocket not connected');
-                }
-            }
-        }
-        
-        // Initialize voice call manager when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            window.voiceCallManager = new VoiceCallManager();
-            
-            // Override setRoom to update voice call manager
-            const originalSetRoom = window.setRoom;
-            window.setRoom = function(roomId) {
-                if (window.voiceCallManager) {
-                    window.voiceCallManager.setRoom(roomId);
-                }
-                if (originalSetRoom) {
-                    originalSetRoom(roomId);
-                }
-            };
         });
+    }
+    
+    // Update UI based on call state
+    updateUI() {
+        if (this.callButton) this.callButton.disabled = this.isInCall;
+        if (this.endCallButton) this.endCallButton.style.display = this.isInCall ? 'block' : 'none';
+        if (this.muteButton) this.muteButton.style.display = this.isInCall ? 'block' : 'none';
+        
+        if (this.callStatus) {
+            this.callStatus.textContent = this.isInCall 
+                ? (this.isCaller ? 'Calling...' : 'Incoming call...') 
+                : 'Ready to call';
+        }
+    }
+    
+    // Toggle mute state
+    toggleMute() {
+        if (!this.localStream) return;
+        
+        const audioTracks = this.localStream.getAudioTracks();
+        if (audioTracks.length > 0) {
+            const isCurrentlyMuted = !audioTracks[0].enabled;
+            audioTracks[0].enabled = isCurrentlyMuted;
+            
+            if (this.muteButton) {
+                this.muteButton.textContent = isCurrentlyMuted ? 'Mute' : 'Unmute';
+            }
+        }
+    }
+    
+    // Handle call offer from remote peer
+    async handleCallOffer(offer) {
+        if (this.isInCall) return;
+        
+        try {
+            this.isCaller = false;
+            this.isInCall = true;
+            this.updateUI();
+            
+            // Get local media stream
+            this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true, 
+                video: false 
+            });
+            
+            // Create peer connection
+            await this.setupPeerConnection();
+            
+            // Set remote description and create answer
+            await this.peer.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await this.peer.createAnswer();
+            await this.peer.setLocalDescription(answer);
+            
+            // Send answer to caller
+            this.sendSignal({
+                type: 'call_answer',
+                answer: answer
+            });
+            
+        } catch (error) {
+            console.error('Error handling call offer:', error);
+            this.cleanupCall();
+        }
+    }
+    
+    // Handle call answer from remote peer
+    async handleCallAnswer(answer) {
+        if (!this.peer || !this.isCaller) return;
+        
+        try {
+            await this.peer.setRemoteDescription(new RTCSessionDescription(answer));
+        } catch (error) {
+            console.error('Error handling call answer:', error);
+            this.cleanupCall();
+        }
+    }
+    
+    // Handle ICE candidate
+    async handleICECandidate(candidate) {
+        if (!this.peer) return;
+        
+        try {
+            if (candidate) {
+                await this.peer.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        } catch (error) {
+            console.error('Error handling ICE candidate:', error);
+        }
+    }
+    
+    // Handle call end
+    handleCallEnd() {
+        this.cleanupCall();
+        this.updateUI();
+    }
+    
+    // Set up WebRTC peer connection
+    async setupPeerConnection() {
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        };
+        
+        this.peer = new RTCPeerConnection(configuration);
+        
+        // Add local stream to peer connection
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => {
+                this.peer.addTrack(track, this.localStream);
+            });
+        }
+        
+        // Handle remote stream
+        this.peer.ontrack = (event) => {
+            if (this.remoteAudio) {
+                this.remoteAudio.srcObject = event.streams[0];
+            }
+        };
+        
+        // Handle ICE candidates
+        this.peer.onicecandidate = (event) => {
+            if (event.candidate) {
+                this.sendSignal({
+                    type: 'ice_candidate',
+                    candidate: event.candidate
+                });
+            }
+        };
+        
+        // Handle connection state changes
+        this.peer.onconnectionstatechange = () => {
+            if (this.peer.connectionState === 'disconnected' || 
+                this.peer.connectionState === 'failed') {
+                this.cleanupCall();
+            }
+        };
+    }
+    
+    // Send signal through WebSocket
+    sendSignal(data) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket not connected');
+            return;
+        }
+        
+        const message = {
+            ...data,
+            roomId: this.currentRoomId
+        };
+        
+        this.ws.send(JSON.stringify(message));
+    }
+    
+    // Initiate a call
+    async initiateCall() {
+        if (this.isInCall) return;
+        
+        try {
+            this.isCaller = true;
+            this.isInCall = true;
+            this.updateUI();
+            
+            // Get local media stream
+            this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true, 
+                video: false 
+            });
+            
+            // Create peer connection
+            await this.setupPeerConnection();
+            
+            // Create and set local description
+            const offer = await this.peer.createOffer();
+            await this.peer.setLocalDescription(offer);
+            
+            // Send offer to other peer
+            this.sendSignal({
+                type: 'call_offer',
+                offer: offer
+            });
+            
+        } catch (error) {
+            console.error('Error initiating call:', error);
+            this.cleanupCall();
+        }
+    }
+    
+    // End the current call
+    endCall() {
+        this.sendSignal({
+            type: 'call_end'
+        });
+        this.cleanupCall();
+        this.updateUI();
+    }
+    
+    // Clean up call resources
+    cleanupCall() {
+        if (this.peer) {
+            this.peer.ontrack = null;
+            this.peer.onicecandidate = null;
+            this.peer.onconnectionstatechange = null;
+            this.peer.close();
+            this.peer = null;
+        }
+        
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+            this.localStream = null;
+        }
+        
+        if (this.remoteAudio) {
+            this.remoteAudio.srcObject = null;
+        }
+        
+        this.isInCall = false;
+        this.isCaller = false;
+    }
+}
+
+// Initialize when the page loads
+window.addEventListener('DOMContentLoaded', () => {
+    const voiceCallManager = new VoiceCallManager();
+    
+    // Make it globally available if needed
+    window.voiceCallManager = voiceCallManager;
+});

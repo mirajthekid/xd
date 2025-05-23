@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, height=device-height, viewport-fit=cover">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' ws: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' ws: wss:; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:;">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="Referrer-Policy" content="no-referrer">
@@ -99,8 +99,22 @@
     <script src="scripts.js"></script>
     <script src="minimal_typing_fix.js"></script>
     <script src="swipe-to-skip.js"></script>
-    <script src="mobile-adjustments.js"></script>
+    <!-- WebRTC and Voice Call Functionality -->
     <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+    <script>
+        // Initialize WebSocket connection
+        window.ws = new WebSocket('wss://' + window.location.host + '/ws');
+        
+        // Log WebSocket connection status
+        window.ws.addEventListener('open', () => {
+            console.log('WebSocket connection established');
+        });
+        
+        window.ws.addEventListener('error', (error) => {
+            console.error('WebSocket error:', error);
+        });
+    </script>
     <script src="voice-call.js"></script>
+    <script src="mobile-adjustments.js"></script>
 </body>
 </html>
