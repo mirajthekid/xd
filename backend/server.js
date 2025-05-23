@@ -322,6 +322,52 @@ wss.on('connection', (ws, req) => {
       const data = JSON.parse(message);
       
       switch (data.type) {
+        case 'call_initiate':
+          console.log(`Call initiated in room: ${data.roomId}`);
+          const room = activeRooms.get(data.roomId);
+          if (room && room.user1 && room.user2) {
+            const otherUserId = room.user1 === userId ? room.user2 : room.user1;
+            const otherUserWs = userConnections.get(otherUserId);
+            if (otherUserWs && otherUserWs.readyState === WebSocket.OPEN) {
+              otherUserWs.send(JSON.stringify({
+                type: 'call_initiate',
+                roomId: data.roomId
+              }));
+            }
+          }
+          break;
+          
+        case 'call_signal':
+          console.log(`Call signal received in room: ${data.roomId}`);
+          const signalRoom = activeRooms.get(data.roomId);
+          if (signalRoom && signalRoom.user1 && signalRoom.user2) {
+            const targetUserId = signalRoom.user1 === userId ? signalRoom.user2 : signalRoom.user1;
+            const targetWs = userConnections.get(targetUserId);
+            if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+              targetWs.send(JSON.stringify({
+                type: 'call_signal',
+                roomId: data.roomId,
+                signal: data.signal
+              }));
+            }
+          }
+          break;
+
+        case 'call_end':
+          console.log(`Call ended in room: ${data.roomId}`);
+          const endRoom = activeRooms.get(data.roomId);
+          if (endRoom && endRoom.user1 && endRoom.user2) {
+            const otherEndUserId = endRoom.user1 === userId ? endRoom.user2 : endRoom.user1;
+            const otherEndWs = userConnections.get(otherEndUserId);
+            if (otherEndWs && otherEndWs.readyState === WebSocket.OPEN) {
+              otherEndWs.send(JSON.stringify({
+                type: 'call_end',
+                roomId: data.roomId
+              }));
+            }
+          }
+          break;
+          
         case 'login':
           // Validate username using our sanitization utility
           const usernameResult = sanitizeUsername(data.username);
