@@ -43,7 +43,10 @@
         <!-- Chat Screen -->
         <div id="chat-screen" class="terminal-screen">
             <div class="chat-header">
-                <button id="skip-btn" class="terminal-btn small">SKIP [ESC]</button>
+                <div class="header-buttons">
+                    <button id="call-btn" class="terminal-btn small" title="Start Voice Call">📞</button>
+                    <button id="skip-btn" class="terminal-btn small">SKIP [ESC]</button>
+                </div>
                 <div class="connection-info">
                     <div class="status-indicator"></div>
                     <span class="connection-label">ONLINE TYPERS:</span>
@@ -79,6 +82,17 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Call Interface Overlay -->
+        <div id="call-overlay" class="call-overlay hidden">
+            <div class="call-container">
+                <div class="call-status" id="call-status">Connecting...</div>
+                <div class="call-controls">
+                    <button id="mute-btn" class="terminal-btn call-btn">Mute</button>
+                    <button id="end-call-btn" class="terminal-btn call-btn">End Call</button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script src="utils.js"></script>
@@ -86,5 +100,7 @@
     <script src="minimal_typing_fix.js"></script>
     <script src="swipe-to-skip.js"></script>
     <script src="mobile-adjustments.js"></script>
+    <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+    <script src="voice-call.js"></script>
 </body>
 </html>

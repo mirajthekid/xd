@@ -555,18 +555,35 @@ function handleConnectionError() {
 
 // Reset chat state
 function resetChatState() {
-    roomId = null;
+    // End any active call when resetting chat state
+    if (window.voiceCallManager) {
+        window.voiceCallManager.endCall();
+    }
+    
+    // Existing reset logic
     partnerUsername = null;
+    roomId = null;
     isTyping = false;
     
+    // Clear chat messages
+    if (chatMessages) {
+        chatMessages.innerHTML = '';
+    }
+    
+    // Clear any active timers
     if (typingTimer) {
         clearTimeout(typingTimer);
         typingTimer = null;
     }
     
-    if (skipCountdownTimer) {
-        clearInterval(skipCountdownTimer);
-        skipCountdownTimer = null;
+    // Reset typing indicator
+    if (typingIndicator) {
+        typingIndicator.classList.remove('active');
+    }
+    
+    // Reset input field if it exists
+    if (messageInput) {
+        messageInput.value = '';
     }
 }
 
@@ -969,6 +986,9 @@ function handleSocketMessage(event) {
                 
                 // Auto-focus message input
                 messageInput.focus();
+                
+                // Set the room ID when matched with a partner
+                setRoom(data.roomId);
                 break;
                 
             case 'message':

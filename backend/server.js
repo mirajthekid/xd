@@ -160,6 +160,61 @@ setInterval(() => {
   });
 }, 30000);
 
+// Handle call initiation
+function handleCallInitiate(userId, roomId) {
+  const room = activeRooms.get(roomId);
+  if (!room) return;
+  
+  // Find the other user in the room
+  const otherUserId = room.users[0].id === userId ? room.users[1].id : room.users[0].id;
+  const otherUserWs = userConnections.get(otherUserId);
+  
+  if (otherUserWs && otherUserWs.readyState === WebSocket.OPEN) {
+    otherUserWs.send(JSON.stringify({
+      type: 'call_initiate',
+      roomId: roomId
+    }));
+    console.log(`Call initiated in room ${roomId}`);
+  }
+}
+
+// Handle WebRTC signaling
+function handleCallSignal(userId, roomId, signal) {
+  const room = activeRooms.get(roomId);
+  if (!room) return;
+  
+  // Find the other user in the room
+  const otherUserId = room.users[0].id === userId ? room.users[1].id : room.users[0].id;
+  const otherUserWs = userConnections.get(otherUserId);
+  
+  if (otherUserWs && otherUserWs.readyState === WebSocket.OPEN) {
+    otherUserWs.send(JSON.stringify({
+      type: 'call_signal',
+      roomId: roomId,
+      signal: signal
+    }));
+  }
+}
+
+// Handle call end
+function handleCallEnd(userId, roomId) {
+  const room = activeRooms.get(roomId);
+  if (!room) return;
+  
+  // Find the other user in the room
+  const otherUserId = room.users[0].id === userId ? room.users[1].id : room.users[0].id;
+  const otherUserWs = userConnections.get(otherUserId);
+  
+  if (otherUserWs && otherUserWs.readyState === WebSocket.OPEN) {
+    otherUserWs.send(JSON.stringify({
+      type: 'call_end',
+      roomId: roomId
+    }));
+  }
+  
+  console.log(`Call ended in room ${roomId}`);
+}
+
 // Matchmaking function
 function matchUsers() {
   console.log(`Attempting to match users. Current queue size: ${waitingUsers.length}`);
@@ -273,10 +328,15 @@ wss.on('connection', (ws, req) => {
           
           if (!usernameResult.isValid) {
             ws.send(JSON.stringify({
-              type: 'login_error',
-              message: usernameResult.error
+              type: 'error',
+              message: usernameResult.error || 'Invalid username'
             }));
-            return;
+            return ws.close();
+          }
+          
+          // Initialize user data for rate limiting
+          if (!messageRateLimits.has(userId)) {
+            messageRateLimits.set(userId, []);
           }
           
           const username = usernameResult.sanitized;
@@ -452,6 +512,27 @@ wss.on('connection', (ws, req) => {
             }
           } else {
             console.log(`No room or partner found for skip notification`);
+          }
+          break;
+          
+        case 'call_initiate':
+          // Handle call initiation
+          if (data.roomId) {
+            handleCallInitiate(userId, data.roomId);
+          }
+          break;
+          
+        case 'call_signal':
+          // Handle WebRTC signaling
+          if (data.roomId && data.signal) {
+            handleCallSignal(userId, data.roomId, data.signal);
+          }
+          break;
+          
+        case 'call_end':
+          // Handle call end
+          if (data.roomId) {
+            handleCallEnd(userId, data.roomId);
           }
           break;
           
