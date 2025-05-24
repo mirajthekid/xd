@@ -1,6 +1,6 @@
 // Voice call functionality for ephemeral chat
 class VoiceCallManager {
-    constructor() {
+    constructor(ws) {
         // WebRTC and media stream references
         this.peer = null;
         this.localStream = null;
@@ -14,7 +14,7 @@ class VoiceCallManager {
         this.callTimeout = null;
         
         // WebSocket reference
-        this.ws = window.ws;
+        this.ws = ws;
         
         // DOM elements
         this.muteButton = null;
@@ -56,11 +56,7 @@ class VoiceCallManager {
     
     // Set up WebSocket message handler
     async setupWebSocketHandler() {
-        if (!this.ws) {
-            console.error('WebSocket is not available');
-            return;
-        }
-        
+        // this.ws is now guaranteed by the constructor
         if (this.ws._hasVoiceCallHandler) {
             console.log('WebSocket handler already set up');
             return;

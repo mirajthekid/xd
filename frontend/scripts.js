@@ -1033,7 +1033,7 @@ function handleSocketMessage(event) {
                 messageInput.focus();
                 
                 // Set the room ID when matched with a partner
-                setRoom(data.roomId);
+                handleMatch(data); // Corrected line
                 break;
                 
             case 'message':

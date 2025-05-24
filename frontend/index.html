@@ -134,7 +134,7 @@
         // Initialize VoiceCallManager
         function initializeVoiceCall() {
             if (window.VoiceCallManager) {
-                window.voiceCallManager = new VoiceCallManager();
+                window.voiceCallManager = new VoiceCallManager(window.ws);
                 console.log('VoiceCallManager initialized');
                 
                 // If we already have a room ID (in case of page refresh), set it
