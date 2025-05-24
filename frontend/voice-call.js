@@ -9,20 +9,28 @@ class VoiceCallManager {
         // Call state
         this.isInCall = false;
         this.isCaller = false;
-        this._currentRoomId = window.currentRoomId || null;
+        this._currentRoomId = window.currentRoomId || null; // Keep this
         this.callStatus = null;
         this.callTimeout = null;
         
         // WebSocket reference
-        this.ws = ws;
+        if (!ws || (ws.readyState !== undefined && ws.readyState !== WebSocket.OPEN)) {
+            console.error('VoiceCallManager constructor: WebSocket not provided or not open!', ws);
+            this.ws = null; 
+        } else {
+            this.ws = ws;
+        }
         
+        console.log('VoiceCallManager constructing with ws:', this.ws ? 'WebSocket instance provided' : 'No WebSocket instance', 'and room ID:', this._currentRoomId);
+
         // DOM elements
         this.muteButton = null;
-        this.endCallButton = null;
-        this.callButton = null;
-        this.remoteAudio = null;
-        
-        // Bind methods
+        // ... (rest of DOM element initializations to null)
+        this.callButton = null; // Ensure all relevant members are initialized
+        this.endCallButton = null; // Ensure all relevant members are initialized
+        this.remoteAudio = null; // Ensure all relevant members are initialized
+
+        // Bind methods (keep as is)
         this.init = this.init.bind(this);
         this.initializeUI = this.initializeUI.bind(this);
         this.initializeDOMElements = this.initializeDOMElements.bind(this);
@@ -39,23 +47,43 @@ class VoiceCallManager {
         this.rejectCall = this.rejectCall.bind(this);
         this.updateCallButtonState = this.updateCallButtonState.bind(this);
         
-        console.log('VoiceCallManager initializing with room ID:', this._currentRoomId);
-        
+        // The console.log from the plan ('VoiceCallManager initializing with room ID:') should be removed or adapted,
+        // as we now have a more specific log above. Let's remove the old one to avoid redundancy.
+        // console.log('VoiceCallManager initializing with room ID:', this._currentRoomId); // REMOVE THIS LINE
+
         // Initialize components
-        this.initializeDOMElements();
-        this.initializeUI();
-        this.init();
+        this.initializeDOMElements(); // DOM elements can be initialized
+        this.initializeUI();          // UI can be updated
+        this.init();                  // init will handle ws-dependent parts
     }
     
     // Initialize the voice call manager
     async init() {
-        console.log('Initializing VoiceCallManager');
-        this.setupWebSocketHandler();
-        this.setupEventListeners();
+        console.log('Initializing VoiceCallManager internal state...'); // Changed log message slightly
+        if (!this.ws) {
+            console.error("VoiceCallManager init: Cannot setup WebSocket handlers as WebSocket is not valid or not open.");
+            // Attempt to re-check window.ws as a fallback, though ideally it's passed via constructor.
+            // This is a defensive measure.
+            if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+                console.log("VoiceCallManager init: Fallback, using window.ws");
+                this.ws = window.ws;
+                this.setupWebSocketHandler();
+            } else {
+                console.error("VoiceCallManager init: Fallback window.ws is also not available or not open.");
+            }
+        } else {
+            console.log("VoiceCallManager init: WebSocket is valid, proceeding with setup.");
+            this.setupWebSocketHandler(); // Only setup if ws is valid
+        }
+        this.setupEventListeners(); // Event listeners for buttons can still be set up
     }
     
     // Set up WebSocket message handler
     async setupWebSocketHandler() {
+        if (!this.ws) {
+            console.error('setupWebSocketHandler: Cannot proceed, WebSocket (this.ws) is not available.');
+            return;
+        }
         // this.ws is now guaranteed by the constructor
         if (this.ws._hasVoiceCallHandler) {
             console.log('WebSocket handler already set up');
@@ -575,6 +603,3 @@ class VoiceCallManager {
         console.log('Call cleanup complete');
     }
 }
-
-// Initialize voice call manager when the page loads
-window.voiceCallManager = new VoiceCallManager();
