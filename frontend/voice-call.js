@@ -95,7 +95,7 @@ class VoiceCallManager {
                 
                 switch (data.type) {
                     case 'call_initiate':
-                        await this.handleIncomingCall();
+                        await this.handleIncomingCall(data.signal);
                         break;
                     case 'call_signal':
                         if (data.signal) {
@@ -263,10 +263,7 @@ class VoiceCallManager {
             await this.peer.setLocalDescription(offer);
             
             // Send the offer through WebSocket
-            this.sendSignal({
-                type: 'call_initiate',
-                roomId: this.currentRoomId
-            });
+            this.ws.send(JSON.stringify({ type: 'call_initiate', roomId: this.currentRoomId, signal: offer }));
             
         } catch (error) {
             console.error('Error initiating call:', error);
@@ -278,7 +275,7 @@ class VoiceCallManager {
     }
     
     // Handle incoming call
-    async handleIncomingCall() {
+    async handleIncomingCall(offer) {
         if (this.isInCall) {
             console.log('Already in a call, rejecting incoming call');
             this.sendSignal({ type: 'call_rejected', reason: 'User is busy' });
@@ -287,14 +284,14 @@ class VoiceCallManager {
         
         // Show incoming call UI
         if (confirm('Incoming call. Answer?')) {
-            await this.answerCall();
+            await this.answerCall(offer);
         } else {
             this.rejectCall();
         }
     }
     
     // Answer an incoming call
-    async answerCall() {
+    async answerCall(offer) {
         if (!this.currentRoomId) {
             console.error('Cannot answer call: No room ID set');
             return;
@@ -313,6 +310,7 @@ class VoiceCallManager {
             
             // Set up peer connection
             await this.setupPeerConnection();
+            await this.peer.setRemoteDescription(new RTCSessionDescription(offer));
             
             // Create answer
             const answer = await this.peer.createAnswer({
