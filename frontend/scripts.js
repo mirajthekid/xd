@@ -509,8 +509,13 @@ function handleMatch(data) {
     // Display system message about the match
     displayMessage(`Connected with ${partnerUsername}`, null, 'system');
     
-    // Clear any previous messages
-    // chatMessages.innerHTML = '';
+    // Set the room ID in VoiceCallManager if it exists
+    if (window.voiceCallManager) {
+        console.log('Setting room ID in VoiceCallManager:', roomId);
+        window.voiceCallManager.currentRoomId = roomId;
+    } else {
+        console.error('VoiceCallManager not initialized');
+    }
     
     // Auto-focus message input
     messageInput.focus();
@@ -555,35 +560,54 @@ function handleConnectionError() {
 
 // Reset chat state
 function resetChatState() {
-    // End any active call when resetting chat state
-    if (window.voiceCallManager) {
-        window.voiceCallManager.endCall();
-    }
-    
-    // Existing reset logic
-    partnerUsername = null;
-    roomId = null;
-    isTyping = false;
-    
     // Clear chat messages
-    if (chatMessages) {
-        chatMessages.innerHTML = '';
-    }
+    chatMessages.innerHTML = '';
     
-    // Clear any active timers
-    if (typingTimer) {
-        clearTimeout(typingTimer);
-        typingTimer = null;
+    // Reset input
+    if (messageInput) {
+        messageInput.value = '';
     }
     
     // Reset typing indicator
+    const typingIndicator = document.getElementById('typing-indicator');
     if (typingIndicator) {
-        typingIndicator.classList.remove('active');
+        typingIndicator.style.display = 'none';
     }
     
-    // Reset input field if it exists
-    if (messageInput) {
-        messageInput.value = '';
+    // Clear room ID in VoiceCallManager if it exists
+    if (window.voiceCallManager) {
+        console.log('Clearing room ID in VoiceCallManager');
+        window.voiceCallManager.currentRoomId = null;
+        // Also clean up any ongoing calls
+        if (window.voiceCallManager.isInCall) {
+            window.voiceCallManager.cleanupCall();
+            window.voiceCallManager.updateUI();
+        }
+    }
+    
+    // Reset partner username
+    partnerUsername = null;
+    
+    // Reset skip state
+    isSkipping = false;
+    skipTimeout = null;
+    
+    // Clear any skip timers
+    if (skipTimer) {
+        clearTimeout(skipTimer);
+        skipTimer = null;
+    }
+    
+    // Hide skip confirmation if visible
+    const skipConfirmation = document.getElementById('skip-confirmation');
+    if (skipConfirmation) {
+        skipConfirmation.style.display = 'none';
+    }
+    
+    // Clear typing timeout
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        typingTimeout = null;
     }
 }
 
