@@ -133,18 +133,29 @@
         
         // Initialize VoiceCallManager
         function initializeVoiceCall() {
-            if (window.VoiceCallManager) {
-                window.voiceCallManager = new VoiceCallManager(window.ws);
-                console.log('VoiceCallManager initialized');
-                
-                // If we already have a room ID (in case of page refresh), set it
-                if (window.currentRoomId) {
-                    window.voiceCallManager.currentRoomId = window.currentRoomId;
-                    console.log('Restored room ID:', window.currentRoomId);
+            let attempts = 0;
+            const maxAttempts = 10; // Try for 1 second (10 * 100ms)
+            const interval = 100; // 100ms
+
+            function tryInit() {
+                attempts++;
+                if (window.VoiceCallManager) {
+                    console.log('VoiceCallManager class found. Initializing instance.');
+                    window.voiceCallManager = new VoiceCallManager(window.ws);
+                    console.log('VoiceCallManager instance created:', window.voiceCallManager);
+                    
+                    if (window.currentRoomId && window.voiceCallManager) {
+                        window.voiceCallManager.currentRoomId = window.currentRoomId;
+                        console.log('Restored room ID to VoiceCallManager:', window.currentRoomId);
+                    }
+                } else if (attempts < maxAttempts) {
+                    console.log(`VoiceCallManager class not found yet. Attempt ${attempts}/${maxAttempts}. Retrying in ${interval}ms...`);
+                    setTimeout(tryInit, interval);
+                } else {
+                    console.error(`VoiceCallManager class not found after ${maxAttempts} attempts. Ensure voice-call.js is loaded correctly and defines VoiceCallManager globally.`);
                 }
-            } else {
-                console.error('VoiceCallManager not found. Make sure voice-call.js is loaded.');
             }
+            tryInit();
         }
     </script>
     <script src="mobile-adjustments.js"></script>
