@@ -164,16 +164,25 @@ class VoiceCallManager {
     // Initialize DOM elements
     initializeDOMElements() {
         this.callButton = document.getElementById('call-btn');
+        console.log('callButton element:', this.callButton ? 'Found' : 'NOT Found');
         this.muteButton = document.getElementById('mute-btn');
+        console.log('muteButton element:', this.muteButton ? 'Found' : 'NOT Found');
         this.endCallButton = document.getElementById('end-call-btn');
+        console.log('endCallButton element:', this.endCallButton ? 'Found' : 'NOT Found');
         this.remoteAudio = document.getElementById('remote-audio');
+        console.log('remoteAudio element:', this.remoteAudio ? 'Found' : 'NOT Found');
         this.callStatus = document.getElementById('call-status');
+        console.log('callStatus element:', this.callStatus ? 'Found' : 'NOT Found');
     }
     
     // Set up event listeners
     setupEventListeners() {
+        console.log('Setting up event listeners...');
         if (this.callButton) {
+            console.log('Adding click listener to callButton.');
             this.callButton.addEventListener('click', () => this.initiateCall());
+        } else {
+            console.log('callButton is NULL, cannot add click listener.');
         }
         
         if (this.muteButton) {
@@ -226,6 +235,11 @@ class VoiceCallManager {
     
     // Initialize a call
     async initiateCall() {
+        console.log('--- initiateCall CALLED ---');
+        console.log('Current room ID for call:', this.currentRoomId);
+        console.log('Is in call already:', this.isInCall);
+        console.log('WebSocket instance available:', !!this.ws);
+        if (this.ws) { console.log('WebSocket readyState:', this.ws.readyState); }
         if (!this.currentRoomId) {
             console.error('Cannot initiate call: No room ID set');
             if (this.callStatus) {
@@ -242,28 +256,28 @@ class VoiceCallManager {
         try {
             this.isCaller = true;
             this.isInCall = true;
+            console.log('Updating UI for call initiation...');
             this.updateUI();
             
             // Get local media stream
-            this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: true, 
-                video: false 
-            });
+            console.log('Attempting to get user media (audio)...');
+            try { this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); console.log('Got user media successfully.'); } catch (err) { console.error('Error getting user media:', err); this.cleanupCall(); return; }
             
             // Set up peer connection
-            await this.setupPeerConnection();
+            console.log('Attempting to set up peer connection...');
+            try { await this.setupPeerConnection(); console.log('Peer connection setup successfully.'); } catch (err) { console.error('Error setting up peer connection:', err); this.cleanupCall(); return; }
             
             // Create offer
-            const offer = await this.peer.createOffer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: false,
-                voiceActivityDetection: true
-            });
+            console.log('Attempting to create offer...');
+            let offer; try { offer = await this.peer.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false, voiceActivityDetection: true }); console.log('Offer created successfully.'); } catch (err) { console.error('Error creating offer:', err); this.cleanupCall(); return; }
             
-            await this.peer.setLocalDescription(offer);
+            console.log('Attempting to set local description with offer...');
+            try { await this.peer.setLocalDescription(offer); console.log('Local description set successfully.'); } catch (err) { console.error('Error setting local description:', err); this.cleanupCall(); return; }
             
             // Send the offer through WebSocket
-            this.ws.send(JSON.stringify({ type: 'call_initiate', roomId: this.currentRoomId, signal: offer }));
+            console.log('Attempting to send call_initiate message via WebSocket...');
+            console.log('Call initiate message payload:', JSON.stringify({ type: 'call_initiate', roomId: this.currentRoomId, signal: offer }, null, 2));
+            try { this.ws.send(JSON.stringify({ type: 'call_initiate', roomId: this.currentRoomId, signal: offer })); console.log('call_initiate message sent.'); } catch (err) { console.error('Error sending call_initiate message:', err); this.cleanupCall(); return; }
             
         } catch (error) {
             console.error('Error initiating call:', error);
