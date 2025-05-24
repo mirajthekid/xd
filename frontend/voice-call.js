@@ -163,11 +163,11 @@ class VoiceCallManager {
     
     // Initialize DOM elements
     initializeDOMElements() {
-        this.callButton = document.getElementById('callButton');
-        this.muteButton = document.getElementById('muteButton');
-        this.endCallButton = document.getElementById('endCallButton');
-        this.remoteAudio = document.getElementById('remoteAudio');
-        this.callStatus = document.getElementById('callStatus');
+        this.callButton = document.getElementById('call-btn');
+        this.muteButton = document.getElementById('mute-btn');
+        this.endCallButton = document.getElementById('end-call-btn');
+        this.remoteAudio = document.getElementById('remote-audio');
+        this.callStatus = document.getElementById('call-status');
     }
     
     // Set up event listeners
