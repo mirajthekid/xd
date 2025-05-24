@@ -1,21 +1,30 @@
 // Voice call functionality for ephemeral chat
 class VoiceCallManager {
     constructor() {
+        // WebRTC and media stream references
         this.peer = null;
         this.localStream = null;
-        this.remoteAudio = null;
-        this.isCaller = false;
+        this.remoteStream = null;
+        
+        // Call state
         this.isInCall = false;
-        this.currentRoomId = null;
-        this.isMuted = false;
-        this.ws = null;
+        this.isCaller = false;
+        this._currentRoomId = window.currentRoomId || null;
+        this.callStatus = null;
         this.callTimeout = null;
         
-        // Initialize DOM elements
-        this.initializeDOMElements();
+        // WebSocket reference
+        this.ws = window.ws;
+        
+        // DOM elements
+        this.muteButton = null;
+        this.endCallButton = null;
+        this.callButton = null;
+        this.remoteAudio = null;
         
         // Bind methods
         this.init = this.init.bind(this);
+        this.initializeUI = this.initializeUI.bind(this);
         this.initializeDOMElements = this.initializeDOMElements.bind(this);
         this.initiateCall = this.initiateCall.bind(this);
         this.answerCall = this.answerCall.bind(this);
@@ -26,168 +35,325 @@ class VoiceCallManager {
         this.sendSignal = this.sendSignal.bind(this);
         this.handleSignal = this.handleSignal.bind(this);
         this.setupPeerConnection = this.setupPeerConnection.bind(this);
+        this.handleIncomingCall = this.handleIncomingCall.bind(this);
+        this.rejectCall = this.rejectCall.bind(this);
+        this.updateCallButtonState = this.updateCallButtonState.bind(this);
         
-        // Initialize
+        console.log('VoiceCallManager initializing with room ID:', this._currentRoomId);
+        
+        // Initialize components
+        this.initializeDOMElements();
+        this.initializeUI();
         this.init();
     }
     
-    // Initialize DOM elements
-    initializeDOMElements() {
-        // Get the call button from the chat header
-        this.callButton = document.getElementById('call-btn');
-        // Get buttons from the call overlay
-        this.endCallButton = document.getElementById('end-call-btn');
-        this.muteButton = document.getElementById('mute-btn');
-        this.callStatus = document.getElementById('call-status');
-        this.remoteAudio = document.getElementById('remote-audio');
-        
-        console.log('Initializing DOM elements:', {
-            callButton: this.callButton,
-            endCallButton: this.endCallButton,
-            muteButton: this.muteButton,
-            callStatus: this.callStatus,
-            remoteAudio: this.remoteAudio
-        });
-        
-        // Add event listeners if elements exist
-        if (this.callButton) {
-            console.log('Adding click listener to call button');
-            this.callButton.addEventListener('click', this.initiateCall);
-        } else {
-            console.error('Call button not found!');
-        }
-        
-        if (this.endCallButton) {
-            this.endCallButton.addEventListener('click', this.endCall);
-        } else {
-            console.error('End call button not found!');
-        }
-        
-        if (this.muteButton) {
-            this.muteButton.addEventListener('click', this.toggleMute);
-        } else {
-            console.error('Mute button not found!');
-        }
-    }
-    
     // Initialize the voice call manager
-    init() {
-        this.ws = window.ws || new WebSocket('wss://yourserver.com/ws');
-        this.setupWebSocketHandlers();
-        this.updateUI();
+    async init() {
+        console.log('Initializing VoiceCallManager');
+        this.setupWebSocketHandler();
+        this.setupEventListeners();
     }
     
-    // Set up WebSocket message handlers
-    setupWebSocketHandlers() {
-        this.ws = window.ws;
-        
+    // Set up WebSocket message handler
+    async setupWebSocketHandler() {
         if (!this.ws) {
-            console.error('WebSocket connection not found');
+            console.error('WebSocket is not available');
             return;
         }
         
-        // Add a flag to prevent multiple listeners
         if (this.ws._hasVoiceCallHandler) {
             console.log('WebSocket handler already set up');
             return;
         }
         
-        console.log('Setting up WebSocket handlers for voice calls');
+        console.log('Setting up WebSocket message handler for voice calls');
         
         const messageHandler = async (event) => {
             try {
                 console.log('Received WebSocket message:', event.data);
                 
-                // Skip non-JSON messages (like ping/pong)
-                if (typeof event.data !== 'string' || !event.data.startsWith('{')) {
+                // Skip non-JSON messages
+                if (typeof event.data !== 'string' || !event.data.trim().startsWith('{')) {
                     console.log('Skipping non-JSON message');
                     return;
                 }
                 
-                const data = JSON.parse(event.data);
-                console.log('Parsed WebSocket data:', data);
-                
-                // Only process call-related messages
-                if (!['call_initiate', 'call_signal', 'end_call'].includes(data.type)) {
-                    console.log('Skipping non-call message type:', data.type);
+                let data;
+                try {
+                    data = JSON.parse(event.data);
+                } catch (parseError) {
+                    console.error('Failed to parse WebSocket message:', parseError);
                     return;
                 }
                 
-                console.log('Processing call message type:', data.type);
+                console.log('Processing message type:', data.type);
+                
+                if (!data.type) {
+                    console.warn('Received message without type:', data);
+                    return;
+                }
                 
                 switch (data.type) {
                     case 'call_initiate':
-                        console.log('Incoming call in room:', data.roomId);
-                        if (data.roomId === this.currentRoomId) {
-                            await this.handleIncomingCall();
-                        } else {
-                            console.log('Ignoring call for different room:', data.roomId);
-                        }
+                        await this.handleIncomingCall();
                         break;
-                        
                     case 'call_signal':
-                        console.log('Received call signal:', data.signal);
-                        if (data.roomId === this.currentRoomId) {
+                        if (data.signal) {
                             await this.handleSignal(data.signal);
                         } else {
-                            console.log('Ignoring signal for different room:', data.roomId);
+                            console.warn('Received call_signal without signal data');
                         }
                         break;
-                        
                     case 'end_call':
-                        console.log('Received end call signal');
-                        if (!data.roomId || data.roomId === this.currentRoomId) {
-                            this.handleCallEnd();
+                        this.handleCallEnd();
+                        break;
+                    case 'call_rejected':
+                        console.log('Call was rejected:', data.reason || 'No reason provided');
+                        this.cleanupCall();
+                        if (this.callStatus) {
+                            this.callStatus.textContent = `Call rejected: ${data.reason || 'No reason provided'}`;
                         }
                         break;
-                        
                     default:
                         console.log('Unhandled message type:', data.type);
                 }
             } catch (error) {
                 console.error('Error processing WebSocket message:', error);
-                console.error('Message that caused error:', event.data);
+                if (this.isInCall) {
+                    this.cleanupCall();
+                }
             }
         };
         
-        // Add the event listener
-        this.ws.addEventListener('message', messageHandler);
-        this.ws._hasVoiceCallHandler = true;
+        // Error handler
+        const errorHandler = (error) => {
+            console.error('WebSocket error:', error);
+            if (this.isInCall) {
+                this.cleanupCall();
+            }
+        };
         
-        console.log('WebSocket handlers set up successfully');
+        // Close handler
+        const closeHandler = () => {
+            console.log('WebSocket connection closed');
+            if (this.isInCall) {
+                this.cleanupCall();
+            }
+            // Attempt to reconnect after a delay
+            if (this.ws.readyState === WebSocket.CLOSED) {
+                setTimeout(() => {
+                    console.log('Attempting to reconnect WebSocket...');
+                    this.ws = null;
+                    this.setupWebSocketHandler().catch(console.error);
+                }, 3000);
+            }
+        };
+        
+        // Add event listeners
+        this.ws.addEventListener('message', messageHandler);
+        this.ws.addEventListener('error', errorHandler);
+        this.ws.addEventListener('close', closeHandler);
+        
+        // Store references for cleanup
+        this.ws._hasVoiceCallHandler = true;
+        this.ws._voiceCallMessageHandler = messageHandler;
+        this.ws._voiceCallErrorHandler = errorHandler;
+        this.ws._voiceCallCloseHandler = closeHandler;
+    }
+    
+    // Initialize DOM elements
+    initializeDOMElements() {
+        this.callButton = document.getElementById('callButton');
+        this.muteButton = document.getElementById('muteButton');
+        this.endCallButton = document.getElementById('endCallButton');
+        this.remoteAudio = document.getElementById('remoteAudio');
+        this.callStatus = document.getElementById('callStatus');
+    }
+    
+    // Set up event listeners
+    setupEventListeners() {
+        if (this.callButton) {
+            this.callButton.addEventListener('click', () => this.initiateCall());
+        }
+        
+        if (this.muteButton) {
+            this.muteButton.addEventListener('click', () => this.toggleMute());
+        }
+        
+        if (this.endCallButton) {
+            this.endCallButton.addEventListener('click', () => this.endCall());
+        }
+    }
+    
+    // Initialize UI elements
+    initializeUI() {
+        this.updateUI();
     }
     
     // Update UI based on call state
     updateUI() {
-        const callOverlay = document.getElementById('call-overlay');
-        
-        // Update call button state
+        if (this.isInCall) {
+            if (this.callButton) this.callButton.style.display = 'none';
+            if (this.muteButton) this.muteButton.style.display = 'inline-block';
+            if (this.endCallButton) this.endCallButton.style.display = 'inline-block';
+            if (this.callStatus) this.callStatus.textContent = 'In call...';
+        } else {
+            if (this.callButton) this.callButton.style.display = 'inline-block';
+            if (this.muteButton) this.muteButton.style.display = 'none';
+            if (this.endCallButton) this.endCallButton.style.display = 'none';
+            if (this.callStatus) this.callStatus.textContent = 'Ready';
+        }
+    }
+    
+    // Update call button state based on room ID
+    updateCallButtonState() {
         if (this.callButton) {
-            this.callButton.disabled = this.isInCall;
-            this.callButton.style.display = this.isInCall ? 'none' : 'block';
+            this.callButton.disabled = !this._currentRoomId;
+        }
+    }
+    
+    // Set the current room ID
+    set currentRoomId(roomId) {
+        this._currentRoomId = roomId;
+        this.updateCallButtonState();
+        console.log('Room ID set to:', this._currentRoomId);
+    }
+    
+    // Get the current room ID
+    get currentRoomId() {
+        return this._currentRoomId;
+    }
+    
+    // Initialize a call
+    async initiateCall() {
+        if (!this.currentRoomId) {
+            console.error('Cannot initiate call: No room ID set');
+            if (this.callStatus) {
+                this.callStatus.textContent = 'Error: Not connected to a chat room';
+            }
+            return;
         }
         
-        // Update call overlay visibility
-        if (callOverlay) {
-            if (this.isInCall) {
-                callOverlay.classList.remove('hidden');
-            } else {
-                callOverlay.classList.add('hidden');
+        if (this.isInCall) {
+            console.log('Already in a call');
+            return;
+        }
+        
+        try {
+            this.isCaller = true;
+            this.isInCall = true;
+            this.updateUI();
+            
+            // Get local media stream
+            this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true, 
+                video: false 
+            });
+            
+            // Set up peer connection
+            await this.setupPeerConnection();
+            
+            // Create offer
+            const offer = await this.peer.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: false,
+                voiceActivityDetection: true
+            });
+            
+            await this.peer.setLocalDescription(offer);
+            
+            // Send the offer through WebSocket
+            this.sendSignal({
+                type: 'call_initiate',
+                roomId: this.currentRoomId
+            });
+            
+        } catch (error) {
+            console.error('Error initiating call:', error);
+            this.cleanupCall();
+            if (this.callStatus) {
+                this.callStatus.textContent = `Error: ${error.message}`;
             }
         }
-        
-        // Update call status text
-        if (this.callStatus) {
-            this.callStatus.textContent = this.isInCall 
-                ? (this.isCaller ? 'Calling...' : 'Incoming call...') 
-                : 'Ready to call';
+    }
+    
+    // Handle incoming call
+    async handleIncomingCall() {
+        if (this.isInCall) {
+            console.log('Already in a call, rejecting incoming call');
+            this.sendSignal({ type: 'call_rejected', reason: 'User is busy' });
+            return;
         }
         
-        console.log('UI updated:', {
-            isInCall: this.isInCall,
-            isCaller: this.isCaller,
-            callOverlayVisible: callOverlay && !callOverlay.classList.contains('hidden')
+        // Show incoming call UI
+        if (confirm('Incoming call. Answer?')) {
+            await this.answerCall();
+        } else {
+            this.rejectCall();
+        }
+    }
+    
+    // Answer an incoming call
+    async answerCall() {
+        if (!this.currentRoomId) {
+            console.error('Cannot answer call: No room ID set');
+            return;
+        }
+        
+        try {
+            this.isInCall = true;
+            this.isCaller = false;
+            this.updateUI();
+            
+            // Get local media stream
+            this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true, 
+                video: false 
+            });
+            
+            // Set up peer connection
+            await this.setupPeerConnection();
+            
+            // Create answer
+            const answer = await this.peer.createAnswer({
+                offerToReceiveAudio: true,
+                voiceActivityDetection: true
+            });
+            
+            await this.peer.setLocalDescription(answer);
+            
+            // Send the answer through WebSocket
+            this.sendSignal({
+                type: 'call_signal',
+                signal: answer,
+                roomId: this.currentRoomId
+            });
+            
+        } catch (error) {
+            console.error('Error answering call:', error);
+            this.cleanupCall();
+            if (this.callStatus) {
+                this.callStatus.textContent = `Error: ${error.message}`;
+            }
+        }
+    }
+    
+    // Reject an incoming call
+    rejectCall() {
+        this.sendSignal({
+            type: 'call_rejected',
+            reason: 'User declined'
         });
+        this.cleanupCall();
+    }
+    
+    // End the current call
+    endCall() {
+        this.sendSignal({
+            type: 'end_call',
+            roomId: this.currentRoomId
+        });
+        this.cleanupCall();
     }
     
     // Toggle mute state
@@ -196,483 +362,211 @@ class VoiceCallManager {
         
         const audioTracks = this.localStream.getAudioTracks();
         if (audioTracks.length > 0) {
-            const isCurrentlyMuted = !audioTracks[0].enabled;
-            audioTracks[0].enabled = isCurrentlyMuted;
+            const isMuted = !audioTracks[0].enabled;
+            audioTracks[0].enabled = isMuted;
             
             if (this.muteButton) {
-                this.muteButton.textContent = isCurrentlyMuted ? 'Mute' : 'Unmute';
+                this.muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
             }
         }
     }
     
-    // Handle call offer from remote peer
-    async handleCallOffer(offer) {
-        if (this.isInCall) {
-            console.log('Already in a call, ignoring offer');
+    // Set up peer connection
+    async setupPeerConnection() {
+        if (this.peer) {
+            console.log('Peer connection already exists');
             return;
         }
         
-        console.log('Handling call offer:', offer);
-        
         try {
-            this.isCaller = false;
-            this.isInCall = true;
-            this.updateUI();
+            // Create RTCPeerConnection
+            const configuration = {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' }
+                ]
+            };
             
-            // Get local media stream if not already available
-            if (!this.localStream) {
-                this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: true, 
-                    video: false 
+            this.peer = new RTCPeerConnection(configuration);
+            
+            // Add local stream to peer connection
+            if (this.localStream) {
+                this.localStream.getTracks().forEach(track => {
+                    this.peer.addTrack(track, this.localStream);
                 });
-                console.log('Obtained local media stream for answering call');
             }
             
-            // Create peer connection if not already created
-            if (!this.peer) {
-                await this.setupPeerConnection();
-            }
+            // Set up event handlers
+            this.peer.onicecandidate = (event) => {
+                if (event.candidate) {
+                    this.sendSignal({
+                        type: 'call_signal',
+                        signal: {
+                            type: 'candidate',
+                            candidate: event.candidate
+                        },
+                        roomId: this.currentRoomId
+                    });
+                }
+            };
             
-            // Set remote description
-            console.log('Setting remote description with offer');
-            await this.peer.setRemoteDescription(new RTCSessionDescription(offer));
+            this.peer.ontrack = (event) => {
+                if (event.streams && event.streams[0]) {
+                    this.remoteStream = event.streams[0];
+                    if (this.remoteAudio) {
+                        this.remoteAudio.srcObject = this.remoteStream;
+                        this.remoteAudio.play().catch(e => console.error('Error playing remote audio:', e));
+                    }
+                }
+            };
             
-            // Create and set local description (answer)
-            console.log('Creating answer');
-            const answer = await this.peer.createAnswer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: false
-            });
+            this.peer.oniceconnectionstatechange = () => {
+                console.log('ICE connection state:', this.peer.iceConnectionState);
+                
+                if (this.peer.iceConnectionState === 'failed' || 
+                    this.peer.iceConnectionState === 'disconnected' ||
+                    this.peer.iceConnectionState === 'closed') {
+                    console.log('ICE connection failed or closed, cleaning up');
+                    this.cleanupCall();
+                }
+            };
             
-            console.log('Setting local description with answer');
-            await this.peer.setLocalDescription(answer);
+            this.peer.onsignalingstatechange = () => {
+                console.log('Signaling state:', this.peer.signalingState);
+            };
             
-            // The answer will be sent through the onicecandidate handler
+            this.peer.onconnectionstatechange = () => {
+                console.log('Connection state:', this.peer.connectionState);
+            };
+            
+            console.log('Peer connection created');
             
         } catch (error) {
-            console.error('Error handling call offer:', error);
+            console.error('Error setting up peer connection:', error);
             this.cleanupCall();
-            this.updateUI();
-            
-            // Notify the other peer about the error
-            this.sendSignal({
-                type: 'error',
-                message: 'Failed to handle call offer: ' + error.message
-            });
+            throw error;
         }
     }
     
-    // Handle call answer from remote peer
-    async handleCallAnswer(answer) {
-        if (!this.peer || !this.isCaller) return;
+    // Handle WebRTC signaling
+    async handleSignal(signal) {
+        if (!this.peer) {
+            console.error('No peer connection to handle signal');
+            return;
+        }
         
         try {
-            await this.peer.setRemoteDescription(new RTCSessionDescription(answer));
+            if (signal.type === 'offer') {
+                console.log('Received offer, creating answer...');
+                await this.peer.setRemoteDescription(new RTCSessionDescription(signal));
+                
+                const answer = await this.peer.createAnswer({
+                    offerToReceiveAudio: true,
+                    voiceActivityDetection: true
+                });
+                
+                await this.peer.setLocalDescription(answer);
+                
+                this.sendSignal({
+                    type: 'call_signal',
+                    signal: answer,
+                    roomId: this.currentRoomId
+                });
+                
+            } else if (signal.type === 'answer') {
+                console.log('Received answer');
+                await this.peer.setRemoteDescription(new RTCSessionDescription(signal));
+                
+            } else if (signal.type === 'candidate') {
+                console.log('Received ICE candidate');
+                await this.peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                
+            } else {
+                console.warn('Unknown signal type:', signal.type);
+            }
+            
         } catch (error) {
-            console.error('Error handling call answer:', error);
+            console.error('Error handling signal:', error);
             this.cleanupCall();
         }
-    }
-    
-    // Handle ICE candidate
-    async handleICECandidate(candidate) {
-        if (!this.peer) return;
-        
-        try {
-            if (candidate) {
-                await this.peer.addIceCandidate(new RTCIceCandidate(candidate));
-            }
-        } catch (error) {
-            console.error('Error handling ICE candidate:', error);
-        }
-    }
-    
-    // Handle call end
-    handleCallEnd() {
-        this.cleanupCall();
-        this.updateUI();
     }
     
     // Send signal through WebSocket
     sendSignal(data) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket is not connected');
+            return;
+        }
+        
         if (!this.currentRoomId) {
             console.error('Cannot send signal: No room ID set');
             return;
         }
         
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket is not connected');
-            
-            // If we're in a call and lose connection, clean up
-            if (this.isInCall) {
-                console.error('WebSocket disconnected during call, cleaning up...');
-                this.cleanupCall();
-                this.updateUI();
-                
-                if (this.callStatus) {
-                    this.callStatus.textContent = 'Connection lost';
-                }
-            }
-            return;
-        }
-        
         try {
-            const message = {
+            const message = JSON.stringify({
                 type: 'call_signal',
                 roomId: this.currentRoomId,
-                signal: data
-            };
+                ...data
+            });
             
-            // Log a preview of the message (without the full SDP)
-            const logMessage = {
-                ...message,
-                signal: data.type === 'offer' || data.type === 'answer' ? 
-                    { ...data, sdp: data.sdp ? data.sdp.substring(0, 80) + '...' : '' } : data
-            };
+            this.ws.send(message);
+            console.log('Sent signal:', data.type);
             
-            console.log('Sending signal:', JSON.stringify(logMessage, null, 2));
-            this.ws.send(JSON.stringify(message));
         } catch (error) {
             console.error('Error sending signal:', error);
-            
-            // If we're in a call and hit an error, clean up
-            if (this.isInCall) {
-                this.cleanupCall();
-                this.updateUI();
-            }
-        }
-    }
-    
-    // Set up WebRTC peer connection
-    async setupPeerConnection() {
-        const configuration = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-        };
-        
-        this.peer = new RTCPeerConnection(configuration);
-        
-        // Add local stream to peer connection
-        if (this.localStream) {
-            this.localStream.getTracks().forEach(track => {
-                this.peer.addTrack(track, this.localStream);
-            });
-        }
-        
-        // Handle remote stream
-        this.peer.ontrack = (event) => {
-            if (this.remoteAudio) {
-                this.remoteAudio.srcObject = event.streams[0];
-            }
-        };
-        
-        // Handle ICE candidates
-        this.peer.onicecandidate = (event) => {
-            if (event.candidate) {
-                this.sendSignal({
-                    type: 'ice_candidate',
-                    candidate: event.candidate
-                });
-            }
-        };
-        
-        // Handle connection state changes
-        this.peer.onconnectionstatechange = () => {
-            if (this.peer.connectionState === 'disconnected' || 
-                this.peer.connectionState === 'failed') {
-                this.cleanupCall();
-            }
-        };
-        
-        return this.peer;
-    }
-    
-    // Handle incoming call
-    async handleIncomingCall() {
-        console.log('Handling incoming call...');
-        
-        if (this.isInCall) {
-            console.log('Already in a call, rejecting incoming call');
-            this.sendSignal({
-                type: 'call_rejected',
-                reason: 'User is already in a call'
-            });
-            return;
-        }
-        
-        this.isInCall = true;
-        this.isCaller = false;
-        this.updateUI();
-        
-        console.log('Incoming call UI updated, waiting for user action...');
-        
-        // Set a timeout to automatically reject the call if not answered
-        this.callTimeout = setTimeout(() => {
-            if (this.isInCall && !this.peer) {
-                console.log('Call timeout - auto rejecting');
-                this.rejectCall('No response');
-            }
-        }, 30000); // 30 seconds to answer
-    }
-    
-    // Reject an incoming call
-    rejectCall(reason = 'Call rejected') {
-        console.log('Rejecting call:', reason);
-        
-        // Clear the call timeout
-        if (this.callTimeout) {
-            clearTimeout(this.callTimeout);
-            this.callTimeout = null;
-        }
-        
-        // Notify the other peer
-        this.sendSignal({
-            type: 'call_rejected',
-            reason: reason
-        });
-        
-        // Clean up
-        this.cleanupCall();
-        this.updateUI();
-    }
-    
-    // Answer an incoming call
-    async answerCall() {
-        console.log('Answering call...');
-        
-        if (this.isInCall && this.peer) {
-            console.log('Already in a call, cannot answer another');
-            return;
-        }
-        
-        // Clear any pending call timeout
-        if (this.callTimeout) {
-            clearTimeout(this.callTimeout);
-            this.callTimeout = null;
-        }
-        
-        try {
-            this.isInCall = true;
-            this.updateUI();
-            
-            console.log('Requesting microphone access...');
-            
-            // Get local media stream with better audio settings
-            this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: false 
-            });
-            
-            console.log('Microphone access granted, setting up peer connection...');
-            
-            // Create peer connection
-            await this.setupPeerConnection();
-            
-            // Create and set local description (answer)
-            console.log('Creating answer...');
-            const answer = await this.peer.createAnswer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: false,
-                voiceActivityDetection: true
-            });
-            
-            console.log('Setting local description with answer...');
-            await this.peer.setLocalDescription(answer);
-            
-            // Send the answer back to the caller
-            console.log('Sending answer to caller...');
-            this.sendSignal({
-                type: 'call_signal',
-                signal: answer
-            });
-            
-            console.log('Call answered successfully');
-            
-        } catch (error) {
-            console.error('Error answering call:', error);
-            
-            // Send error to the other peer
-            this.sendSignal({
-                type: 'error',
-                message: 'Failed to answer call: ' + (error.message || 'Unknown error')
-            });
-            
-            // Clean up
-            this.cleanupCall();
-            this.updateUI();
-            
-            // Show error to user
-            if (this.callStatus) {
-                this.callStatus.textContent = 'Error: ' + (error.message || 'Failed to answer call');
-            }
-        }    
-    }
-    
-    // Initiate a call
-    async initiateCall() {
-        console.log('=== Call button clicked ===');
-        console.log('Current VoiceCallManager state:', {
-            currentRoomId: this.currentRoomId,
-            isInCall: this.isInCall,
-            isCaller: this.isCaller,
-            wsReadyState: this.ws ? this.ws.readyState : 'No WebSocket',
-            localStream: this.localStream ? 'Available' : 'Not available'
-        });
-        
-        if (this.isInCall) {
-            const errorMsg = 'Already in a call, cannot initiate another';
-            console.error(errorMsg);
-            if (this.callStatus) {
-                this.callStatus.textContent = errorMsg;
-            }
-            return;
-        }
-        
-        if (!this.currentRoomId) {
-            const errorMsg = 'No room ID set. Cannot initiate call without a room. Please wait for a match first.';
-            console.error(errorMsg);
-            if (this.callStatus) {
-                this.callStatus.textContent = 'Error: Not in a chat room';
-            }
-            alert(errorMsg);
-            return;
-        }
-        
-        try {
-            console.log('=== Starting call process ===');
-            console.log('Room ID:', this.currentRoomId);
-            
-            // Update UI first to show call is starting
-            this.isCaller = true;
-            this.isInCall = true;
-            this.updateUI();
-            
-            // 1. Notify the other user that we want to start a call
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                const message = {
-                    type: 'call_initiate',
-                    roomId: this.currentRoomId
-                };
-                console.log('Sending call_initiate:', message);
-                this.ws.send(JSON.stringify(message));
-            } else {
-                throw new Error('WebSocket not connected');
-            }
-            
-            // 2. Get local media stream (microphone access)
-            console.log('Requesting microphone access...');
-            this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: false 
-            });
-            console.log('Microphone access granted');
-            
-            // 3. Create peer connection
-            console.log('Setting up peer connection...');
-            await this.setupPeerConnection();
-            
-            // 4. Create and set local description (offer)
-            console.log('Creating offer...');
-            const offer = await this.peer.createOffer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: false,
-                voiceActivityDetection: true
-            });
-            
-            console.log('Setting local description with offer...');
-            await this.peer.setLocalDescription(offer);
-            
-            console.log('Call initiation complete - waiting for answer...');
-            
-        } catch (error) {
-            console.error('Error during call initiation:', error);
-            
-            // Show user-friendly error message
-            const errorMessage = this.getUserFriendlyError(error);
-            if (this.callStatus) {
-                this.callStatus.textContent = `Error: ${errorMessage}`;
-            } else {
-                alert(`Call failed: ${errorMessage}`);
-            }
-            
-            // Clean up and reset UI
-            this.cleanupCall();
-            this.updateUI();
-        }
-    }
-    
-    // End the current call
-    endCall() {
-        this.sendSignal({
-            type: 'call_end'
-        });
-        this.cleanupCall();
-        this.updateUI();
-    }
-    
-    // Convert technical errors to user-friendly messages
-    getUserFriendlyError(error) {
-        console.log('Raw error:', error);
-        
-        if (error.name === 'NotAllowedError') {
-            return 'Microphone access was denied. Please allow microphone access to make calls.';
-        } else if (error.name === 'NotFoundError') {
-            return 'No microphone found. Please connect a microphone and try again.';
-        } else if (error.name === 'NotReadableError') {
-            return 'Could not access the microphone. Another application might be using it.';
-        } else if (error.name === 'OverconstrainedError') {
-            return 'The requested microphone settings are not supported.';
-        } else if (error.message && error.message.includes('room is full')) {
-            return 'The chat room is full. Please try again later.';
-        } else if (error.message && error.message.includes('not connected')) {
-            return 'Connection lost. Please check your internet connection and try again.';
-        } else if (error.message) {
-            // Return a generic error with the message
-            return error.message;
-        } else {
-            return 'An unknown error occurred. Please try again.';
         }
     }
     
     // Clean up call resources
     cleanupCall() {
-        if (this.peer) {
-            this.peer.ontrack = null;
-            this.peer.onicecandidate = null;
-            this.peer.onconnectionstatechange = null;
-            this.peer.close();
-            this.peer = null;
-        }
+        console.log('Cleaning up call resources');
         
+        // Stop all tracks in local stream
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
         }
         
+        // Close peer connection
+        if (this.peer) {
+            this.peer.onicecandidate = null;
+            this.peer.ontrack = null;
+            this.peer.oniceconnectionstatechange = null;
+            this.peer.onsignalingstatechange = null;
+            this.peer.onconnectionstatechange = null;
+            this.peer.close();
+            this.peer = null;
+        }
+        
+        // Clean up remote audio
         if (this.remoteAudio) {
+            this.remoteAudio.pause();
             this.remoteAudio.srcObject = null;
         }
         
+        // Reset call state
         this.isInCall = false;
         this.isCaller = false;
+        this.remoteStream = null;
+        
+        // Clear any active timeouts
+        if (this.callTimeout) {
+            clearTimeout(this.callTimeout);
+            this.callTimeout = null;
+        }
+        
+        // Update UI
+        this.updateUI();
+        
+        if (this.callStatus) {
+            this.callStatus.textContent = 'Call ended';
+        }
+        
+        console.log('Call cleanup complete');
     }
 }
 
-// Initialize when the page loads
-window.addEventListener('DOMContentLoaded', () => {
-    const voiceCallManager = new VoiceCallManager();
-    
-    // Make it globally available if needed
-    window.voiceCallManager = voiceCallManager;
-});
+// Initialize voice call manager when the page loads
+window.voiceCallManager = new VoiceCallManager();

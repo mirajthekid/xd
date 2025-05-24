@@ -500,7 +500,9 @@ function handleSocketMessage(event) {
 
 // Handle match with another user
 function handleMatch(data) {
+    // Store room ID in both global scope and VoiceCallManager
     roomId = data.roomId;
+    window.currentRoomId = roomId; // Store in global scope for persistence
     partnerUsername = data.partnerUsername;
     
     console.log('Match made! Room ID:', roomId, 'Partner:', partnerUsername);
@@ -526,10 +528,18 @@ function handleMatch(data) {
         });
     } else {
         console.error('VoiceCallManager not initialized. Make sure voice-call.js is loaded.');
+        // If VoiceCallManager isn't ready yet, it will pick up the room ID from window.currentRoomId when it initializes
     }
     
     // Auto-focus message input
     messageInput.focus();
+    
+    // Enable call button now that we have a room
+    const callBtn = document.getElementById('call-btn');
+    if (callBtn) {
+        callBtn.disabled = false;
+        callBtn.title = 'Start Voice Call';
+    }
 }
 
 // Handle partner skip
