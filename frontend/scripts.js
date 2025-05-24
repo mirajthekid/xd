@@ -503,6 +503,8 @@ function handleMatch(data) {
     roomId = data.roomId;
     partnerUsername = data.partnerUsername;
     
+    console.log('Match made! Room ID:', roomId, 'Partner:', partnerUsername);
+    
     // Show chat screen
     showScreen(chatScreen);
     
@@ -513,8 +515,17 @@ function handleMatch(data) {
     if (window.voiceCallManager) {
         console.log('Setting room ID in VoiceCallManager:', roomId);
         window.voiceCallManager.currentRoomId = roomId;
+        console.log('Current room ID after setting:', window.voiceCallManager.currentRoomId);
+        
+        // Debug: Log the entire VoiceCallManager state
+        console.log('VoiceCallManager state:', {
+            currentRoomId: window.voiceCallManager.currentRoomId,
+            isInCall: window.voiceCallManager.isInCall,
+            isCaller: window.voiceCallManager.isCaller,
+            ws: window.voiceCallManager.ws ? 'WebSocket connected' : 'No WebSocket'
+        });
     } else {
-        console.error('VoiceCallManager not initialized');
+        console.error('VoiceCallManager not initialized. Make sure voice-call.js is loaded.');
     }
     
     // Auto-focus message input

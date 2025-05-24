@@ -517,16 +517,31 @@ class VoiceCallManager {
     
     // Initiate a call
     async initiateCall() {
-        console.log('Call button clicked!');
+        console.log('=== Call button clicked ===');
+        console.log('Current VoiceCallManager state:', {
+            currentRoomId: this.currentRoomId,
+            isInCall: this.isInCall,
+            isCaller: this.isCaller,
+            wsReadyState: this.ws ? this.ws.readyState : 'No WebSocket',
+            localStream: this.localStream ? 'Available' : 'Not available'
+        });
         
         if (this.isInCall) {
-            console.log('Already in a call, cannot initiate another');
+            const errorMsg = 'Already in a call, cannot initiate another';
+            console.error(errorMsg);
+            if (this.callStatus) {
+                this.callStatus.textContent = errorMsg;
+            }
             return;
         }
         
         if (!this.currentRoomId) {
-            console.error('No room ID set. Cannot initiate call without a room.');
-            alert('Error: Not connected to a chat room');
+            const errorMsg = 'No room ID set. Cannot initiate call without a room. Please wait for a match first.';
+            console.error(errorMsg);
+            if (this.callStatus) {
+                this.callStatus.textContent = 'Error: Not in a chat room';
+            }
+            alert(errorMsg);
             return;
         }
         
